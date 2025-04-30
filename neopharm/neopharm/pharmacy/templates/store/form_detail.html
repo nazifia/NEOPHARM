@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block extra_css %}
+<style>
+    @page {
+        size: A4 portrait;
+        margin: 0;
+    }
+
+    @media print {
+        /* Hide elements not needed for printing */
+        .no-print {
+            display: none !important;
+        }
+        .print-only {
+            display: block !important;
+        }
+
+        /* Remove card styling for cleaner print */
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+            margin: 20px !important;
+        }
+
+        .card-header {
+            background-color: white !important;
+            color: black !important;
+            padding: 0 !important;
+            border: none !important;
+        }
+
+        .card-body {
+            padding: 0 !important;
+        }
+
+        /* Ensure the table is fully visible */
+        .table-responsive {
+            overflow: visible !important;
+        }
+
+        /* Adjust table styling for print */
+        .table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+        }
+
+        .table th, .table td {
+            border: 1px solid #ddd !important;
+            padding: 1px 2px !important;
+            font-size: 8pt !important;
+            line-height: 1 !important;
+        }
+
+        /* Make table more compact */
+        .table th {
+            font-weight: bold !important;
+            background-color: #f8f9fa !important;
+        }
+
+        /* Make badges display properly in print */
+        .badge {
+            border: 1px solid #333 !important;
+            background-color: white !important;
+            color: black !important;
+            font-size: 6pt !important;
+            padding: 0px 1px !important;
+            margin: 0 !important;
+            display: inline-block !important;
+            line-height: 1 !important;
+            vertical-align: middle !important;
+        }
+
+        /* Ensure text colors are visible */
+        body {
+            color: black !important;
+        }
+
+        /* Add page breaks where needed */
+        .page-break-after {
+            page-break-after: always;
+        }
+
+        /* Adjust container and card width for print */
+        .container, .card {
+            width: 100vw !important;
+            max-width: 100vw !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        /* Optimize layout for landscape orientation */
+        .row {
+            display: flex !important;
+            flex-wrap: wrap !important;
+        }
+
+        /* Adjust column widths for landscape */
+        .col-sm-6 {
+            width: 70% !important;
+            flex: 0 0 50% !important;
+            max-width: 50% !important;
+        }
+
+        /* Make table use full width in landscape */
+        .table-responsive {
+            width: 100% !important;
+        }
+
+        /* Ensure all content is visible */
+        html, body {
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* Adjust font sizes for print */
+        body {
+            font-size: 9pt !important;
+        }
+
+        /* Adjust heading sizes for A4 portrait */
+        h1 { font-size: 16pt !important; }
+        h2 { font-size: 14pt !important; }
+        h3 { font-size: 12pt !important; }
+        h4 { font-size: 11pt !important; }
+        h5 { font-size: 10pt !important; }
+        h6 { font-size: 9pt !important; }
+
+        /* Minimize spacing for print */
+        .mb-4, .mb-3, .mb-2, .mb-1 { margin-bottom: 0.1rem !important; }
+        .mt-4, .mt-3, .mt-2, .mt-1 { margin-top: 0.1rem !important; }
+        .py-2, .py-1 { padding-top: 0.05rem !important; padding-bottom: 0.05rem !important; }
+        .mt-5 { margin-top: 0.2rem !important; }
+        .pt-2, .pt-1 { padding-top: 0.05rem !important; }
+        .px-2, .px-1 { padding-left: 0.05rem !important; padding-right: 0.05rem !important; }
+
+        /* Remove all padding and margin from rows and columns */
+        .row { margin: 0 !important; }
+        .col, .col-1, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-10, .col-11, .col-12,
+        .col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10, .col-sm-11, .col-sm-12,
+        .col-md-1, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-md-9, .col-md-10, .col-md-11, .col-md-12 {
+            padding: 0 !important;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            page-break-after: avoid !important;
+        }
+
+        /* Make sure category total rows are visible */
+        .category-total-row.lpacemaker-row { background-color: rgba(227, 242, 253, 0.3) !important; }
+        .category-total-row.ncap-row { background-color: rgba(243, 229, 245, 0.3) !important; }
+        .category-total-row.oncology-row { background-color: rgba(232, 245, 233, 0.3) !important; }
+
+        /* Ensure table headers are visible */
+        thead { display: table-header-group !important; }
+        tfoot { display: table-footer-group !important; }
+
+        /* Add borders to table cells for better readability */
+        th, td {
+            border: 1px solid #ddd !important;
+        }
+
+        /* Ensure text alignment is preserved */
+        .text-center { text-align: center !important; }
+        .text-end { text-align: right !important; }
+
+        /* Make sure the table doesn't break across pages awkwardly */
+        tr { page-break-inside: avoid !important; }
+
+        /* Ensure the signature section appears at the bottom of the page */
+        .signature-section {
+            position: relative !important;
+            margin-top: 50px !important;
+        }
+    }
+
+    .print-only {
+        display: none;
+    }
+
+    .drug-type-badge {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.25rem;
+        display: inline-block;
+        white-space: nowrap;
+    }
+
+    .drug-type-LPACEMAKER { background-color: #e3f2fd; color: #0d47a1; }
+    .drug-type-NCAP { background-color: #f3e5f5; color: #4a148c; }
+    .drug-type-ONCOLOGY { background-color: #e8f5e9; color: #1b5e20; }
+
+    /* Banking details styling */
+    .banking-details {
+        font-size: 0.85rem;
+        line-height: 1.3;
+    }
+
+    /* Responsive styles */
+    @media (max-width: 767.98px) {
+        .d-flex.align-items-center.gap-2 {
+            flex-wrap: wrap;
+        }
+
+        .d-flex.align-items-center.gap-2 strong {
+            width: 100%;
+            margin-bottom: 0.25rem;
+        }
+    }
+
+    /* Category total rows styling */
+    .category-total-row td { font-weight: 500; }
+    .category-total-row.lpacemaker-row { background-color: rgba(227, 242, 253, 0.3); }
+    .category-total-row.ncap-row { background-color: rgba(243, 229, 245, 0.3); }
+    .category-total-row.oncology-row { background-color: rgba(232, 245, 233, 0.3); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4" style="max-width: none;">
+    <div class="card" style="width: 100%;">
+        <!-- Hospital Header - Bold and Centered -->
+        <div class="container-fluid text-center mb-3 hospital-header">
+            <div class="fw-bold fs-5">FEDERAL TEACHING HOSPITAL, KATSINA</div>
+            <div class="fw-bold fs-5">DEPARTMENT OF PHARMACEUTICAL SERVICES</div>
+            <div class="fw-bold fs-5">ONCOLOGY PHARMACY UNIT</div>
+        </div>
+        <!-- <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h3 class="mb-0">FORM #{{ form.form_id }}</h3>
+                <p class="mb-0">Date: {{ form.date|date:"F d, Y H:i" }}</p>
+            </div>
+        </div> -->
+        <div class="card-body">
+            <!-- Print Header removed to save space -->
+
+            <!-- Hospital and Patient Information -->
+            <div class="row mb-1">
+                <div class="col-sm-6">
+                    <h5 class="no-print mb-1">COST ESTIMATE SHEET</h5>
+
+                    <div class="no-print">
+                        <!-- <strong>NeoPharm</strong> -->
+                         <strong>Deposit equivalent amount to their respective bank account or Wallet.</strong>
+                    </div>
+                    <!-- <div class="no-print">FEDERAL TEACHING HOSPITAL, KATSINA</div>
+                    <div class="no-print">DEPARTMENT OF PHARMACEUTICAL SERVICES</div>
+                    <div class="no-print">ONCO-PHARMACY UNIT</div> -->
+                    <div class="banking-details mt-2 no-print">
+                        <div class="lpacemaker-bank">
+                            👉<small><strong>LPacemaker Pharmaceutical Ltd.</strong></small><br>
+                            <strong>acct: 5967461971</strong><br>
+                            <small>MONIE POINT MFB</small>
+                        </div>
+                        <div class="ncap-bank mt-2">
+                            👉<small><strong>NCap details:</strong></small><br>
+                            <small>EMGE Resources LTD.</small><br>
+                            <strong>acct: 1229566144</strong><br>
+                            <small>ZENITH BANK</small>
+                        </div>
+                    </div>
+                    <div class="mt-1"><strong>Form ID:</strong> {{ form.form_id }} | <strong>Date:</strong> {{ form.date|date:"d/m/Y H:i" }}</div>
+                </div>
+
+                <!-- Patient Information -->
+                <div class="col-sm-6">
+                    <h6 class="mb-1">Patient Information:</h6>
+                    <div><strong>Name:</strong> {{ form.buyer_name }}</div>
+                    <div>
+                        <strong>Hospital No:</strong> {{ form.hospital_no }}
+                        {% if form.ncap_no %} | <strong>NCAP No:</strong> {{ form.ncap_no }}{% endif %}
+                    </div>
+                </div>
+            </div>
+            <!-- Form Details -->
+            <div class="table-responsive" style="margin-top: 2px !important; width: 100%;">
+                <table class="table table-striped" style="width: 100%; border-collapse: collapse; margin: 0 !important; table-layout: fixed;">
+                    <thead>
+                        <tr>
+                            <th style="width: 50%;">Item</th>
+                            <th style="width: 10%;">Unit</th>
+                            <th class="text-center" style="width: 10%;">Qty</th>
+                            <th class="text-end" style="width: 15%;">Unit Price</th>
+                            <th class="text-end" style="width: 15%;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <strong>{{ item.name }}</strong>
+                                        {% if item.brand %}
+                                        <small class="text-muted">({{ item.brand }})</small>
+                                        {% endif %}
+                                        <small class="badge bg-info">
+                                            {% if item.drug_type == 'LPACEMAKER' %}LPACEMAKER
+                                            {% elif item.drug_type == 'NCAP' %}NCAP
+                                            {% elif item.drug_type == 'ONCOLOGY' %}ONCO-PHARMACY
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </td>
+                                <td>{{ item.unit }}</td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">₦{{ item.price|floatformat:2|intcomma }}</td>
+                                <td class="text-end">₦{{ item.subtotal|floatformat:2|intcomma }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">
+                                    <div class="alert alert-info mb-0">
+                                        Form items are no longer available. Total amount: ₦{{ total_amount|floatformat:2|intcomma }}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        {% if category_totals.LPACEMAKER > 0 %}
+                        <tr class="category-total-row lpacemaker-row">
+                            <td colspan="4" class="text-end"><span class="badge bg-info">LPACEMAKER</span> Subtotal:</td>
+                            <td class="text-end">₦{{ category_totals.LPACEMAKER|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if category_totals.NCAP > 0 %}
+                        <tr class="category-total-row ncap-row">
+                            <td colspan="4" class="text-end"><span class="badge bg-info">NCAP</span> Subtotal:</td>
+                            <td class="text-end">₦{{ category_totals.NCAP|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if category_totals.ONCOLOGY > 0 %}
+                        <tr class="category-total-row oncology-row">
+                            <td colspan="4" class="text-end"><span class="badge bg-info">ONCO-PHARMACY</span> Subtotal:</td>
+                            <td class="text-end">₦{{ category_totals.ONCOLOGY|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr class="table-active">
+                            <td colspan="4" class="text-end" style="padding: 1px !important;"><strong style="font-size: 8pt;">Total Amount:</strong></td>
+                            <td class="text-end" style="padding: 1px !important;"><strong style="font-size: 11pt;">₦{{ total_amount|floatformat:2|intcomma }}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Footer Information -->
+            <div class="row mt-4">
+                <div class="col-sm-6">
+                    <p><strong>Generated by:</strong> {{ form.dispensed_by.get_full_name|default:form.dispensed_by.username }}</p>
+                </div>
+                <div class="col-sm-6 text-end">
+                    <div class="btn-group no-print">
+                        <a href="{% url 'store:edit_form' form.form_id %}" class="btn btn-secondary">
+                            <i class="fas fa-edit"></i> Edit Form
+                        </a>
+                        <button onclick="window.print()" class="btn btn-primary">
+                            <i class="fas fa-print"></i> Print Form
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ultra-Compact Signature Section - Visible in print -->
+            {% comment %} <div class="print-only" style="margin-top: 0.1rem;">
+                <div style="display: flex; justify-content: space-between; font-size: 7pt;">
+                    <span style="border-top: 1px solid #000; width: 30%; text-align: center;">Dispensed: {{ form.dispensed_by.get_full_name|default:form.dispensed_by.username }}</span>
+                    <span style="border-top: 1px solid #000; width: 30%; text-align: center;">Checked: _______________</span>
+                    <span style="border-top: 1px solid #000; width: 30%; text-align: center;">Received: _______________</span>
+                </div>
+            </div> {% endcomment %}
+
+            <!-- Print Footer removed to save space -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add filter buttons above the table
+        const tableContainer = document.querySelector('.table-responsive');
+        const filterContainer = document.createElement('div');
+        filterContainer.className = 'mb-3 no-print';
+        filterContainer.innerHTML = `
+            <div class="btn-group" role="group" aria-label="Filter by category">
+                <button type="button" class="btn btn-outline-primary active" data-filter="all">All Categories</button>
+                <button type="button" class="btn btn-outline-primary" data-filter="LPACEMAKER">LPACEMAKER</button>
+                <button type="button" class="btn btn-outline-primary" data-filter="NCAP">NCAP</button>
+                <button type="button" class="btn btn-outline-primary" data-filter="ONCOLOGY">ONCO-PHARMACY</button>
+            </div>
+        `;
+        tableContainer.parentNode.insertBefore(filterContainer, tableContainer);
+
+        // Add filter functionality
+        const filterButtons = document.querySelectorAll('[data-filter]');
+        filterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Update active button
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+
+                const filter = this.getAttribute('data-filter');
+                const rows = document.querySelectorAll('tbody tr');
+
+                rows.forEach(row => {
+                    const badge = row.querySelector('.badge');
+                    if (!badge) return;
+
+                    const drugType = badge.textContent.trim();
+                    if (filter === 'all' || drugType === filter) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}
+
+
+

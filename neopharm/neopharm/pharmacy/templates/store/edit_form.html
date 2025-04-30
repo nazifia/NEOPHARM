@@ -1,0 +1,704 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block extra_css %}
+<style>
+    .drug-type-badge {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.25rem;
+        display: inline-block;
+        white-space: nowrap;
+    }
+
+    .drug-type-LPACEMAKER { background-color: #e3f2fd; color: #0d47a1; }
+    .drug-type-NCAP { background-color: #f3e5f5; color: #4a148c; }
+    .drug-type-ONCO-PHARMACY { background-color: #e8f5e9; color: #1b5e20; }
+
+    /* Responsive styles */
+    @media (max-width: 767.98px) {
+        .d-flex.align-items-center.gap-2 {
+            flex-wrap: wrap;
+        }
+
+        .d-flex.align-items-center.gap-2 strong {
+            width: 100%;
+            margin-bottom: 0.25rem;
+        }
+    }
+
+    /* Category total rows styling */
+    .category-total-row td { font-weight: 500; }
+    .category-total-row.lpacemaker-row { background-color: rgba(227, 242, 253, 0.3); }
+    .category-total-row.ncap-row { background-color: rgba(243, 229, 245, 0.3); }
+    .category-total-row.oncology-row { background-color: rgba(232, 245, 233, 0.3); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h3 class="mb-0">Edit Form #{{ form.form_id }}</h3>
+                <p class="mb-0">Date: {{ form.date|date:"F d, Y H:i" }}</p>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Form for editing -->
+            <form method="post" action="{% url 'store:edit_form' form.form_id %}">
+                {% csrf_token %}
+                <div class="row mb-4">
+                    <div class="col-md-6 offset-md-3">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Patient Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="{{ form_form.buyer_name.id_for_label }}" class="form-label">Patient Name</label>
+                                    {{ form_form.buyer_name }}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form_form.hospital_no.id_for_label }}" class="form-label">Hospital No</label>
+                                    {{ form_form.hospital_no }}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form_form.ncap_no.id_for_label }}" class="form-label">NCAP No</label>
+                                    {{ form_form.ncap_no }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Items -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Form Items</h5>
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                        <i class="fas fa-plus"></i> Add Item
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Unit</th>
+                                <th class="text-center">Quantity</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <strong>{{ item.name }}</strong>
+                                            {% if item.brand %}
+                                            <small class="text-muted">({{ item.brand }})</small>
+                                            {% endif %}
+                                            <span class="drug-type-badge drug-type-{{ item.drug_type }}">
+                                                {{ item.drug_type }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>{{ item.unit }}</td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">₦{{ item.price|floatformat:2|intcomma }}</td>
+                                    <td class="text-end">₦{{ item.subtotal|floatformat:2|intcomma }}</td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'store:edit_form_item' form.form_id item.id %}" class="btn btn-primary">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                            <a href="{% url 'store:remove_form_item' form.form_id item.id %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to remove this item?')">
+                                                <i class="fas fa-trash"></i> Remove
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">
+                                        <div class="alert alert-info mb-0">
+                                            No items in this form. Add items using the button above.
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            {% if category_totals.LPACEMAKER > 0 %}
+                            <tr class="category-total-row lpacemaker-row">
+                                <td colspan="4" class="text-end"><span class="drug-type-badge drug-type-LPACEMAKER">LPACEMAKER</span> Subtotal:</td>
+                                <td class="text-end">₦{{ category_totals.LPACEMAKER|floatformat:2|intcomma }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if category_totals.NCAP > 0 %}
+                            <tr class="category-total-row ncap-row">
+                                <td colspan="4" class="text-end"><span class="drug-type-badge drug-type-NCAP">NCAP</span> Subtotal:</td>
+                                <td class="text-end">₦{{ category_totals.NCAP|floatformat:2|intcomma }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if category_totals.ONCOLOGY > 0 %}
+                            <tr class="category-total-row oncology-row">
+                                <td colspan="4" class="text-end"><span class="drug-type-badge drug-type-ONCO-PHARMACY">ONCO-PHARMACY</span> Subtotal:</td>
+                                <td class="text-end">₦{{ category_totals.ONCOLOGY|floatformat:2|intcomma }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr class="table-active">
+                                <td colspan="4" class="text-end"><strong>Total Amount:</strong></td>
+                                <td class="text-end"><strong>₦{{ total_amount|floatformat:2|intcomma }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'store:view_form' form.form_id %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="addItemModalLabel">Add New Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'store:add_form_item' form.form_id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <!-- Search and Category Filter -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <div class="input-group">
+                                <input type="text" id="drug-search" class="form-control" placeholder="Search for drugs..." autocomplete="off">
+                                <button class="btn btn-primary" type="button" id="search-drug-btn">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
+                            <small class="text-muted">Type at least 2 characters to search or select a category</small>
+                        </div>
+                        <div class="col-md-4">
+                            <select id="category-filter" class="form-select">
+                                <option value="all">All Categories</option>
+                                <option value="lpacemaker">LPACEMAKER</option>
+                                <option value="ncap">NCAP</option>
+                                <option value="oncology">ONCO-PHARMACY</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Results Container -->
+                    <div id="search-results-container" style="max-height: 350px; overflow-y: auto;">
+                        <div class="text-center py-3" id="initial-message">
+                            <p>Search for drugs or select a category to view items</p>
+                        </div>
+                        <div id="loading-indicator" style="display: none;" class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading drugs...</p>
+                        </div>
+                        <div id="search-results">
+                            <!-- Search results will be displayed here -->
+                        </div>
+                    </div>
+
+                    <!-- Manual Entry Form -->
+                    <div id="manual-entry-form" class="mt-3">
+                        <hr>
+                        <div class="alert alert-info mb-3">
+                            <small>Fields marked with * are required.</small>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ new_item_form.drug_name.id_for_label }}" class="form-label">Item Name*</label>
+                                    {{ new_item_form.drug_name }}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ new_item_form.drug_brand.id_for_label }}" class="form-label">Brand</label>
+                                    {{ new_item_form.drug_brand }}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ new_item_form.drug_type.id_for_label }}" class="form-label">Category*</label>
+                                    {{ new_item_form.drug_type }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ new_item_form.unit.id_for_label }}" class="form-label">Unit*</label>
+                                    {{ new_item_form.unit }}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ new_item_form.quantity.id_for_label }}" class="form-label">Quantity*</label>
+                                    {{ new_item_form.quantity }}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ new_item_form.price.id_for_label }}" class="form-label">Unit Price (₦)*</label>
+                                    {{ new_item_form.price }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hidden fields for quick add -->
+                    <input type="hidden" name="quick_add" id="quick_add" value="0">
+                    <input type="hidden" name="drug_id" id="drug_id" value="">
+                    <input type="hidden" name="drug_category" id="drug_category" value="">
+                    <input type="hidden" name="quick_quantity" id="quick_quantity" value="1">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add filter buttons above the table
+        const tableContainer = document.querySelector('.table-responsive');
+        const filterContainer = document.createElement('div');
+        filterContainer.className = 'mb-3';
+        filterContainer.innerHTML = `
+            <div class="btn-group" role="group" aria-label="Filter by category">
+                <button type="button" class="btn btn-outline-primary active" data-filter="all">All Categories</button>
+                <button type="button" class="btn btn-outline-primary" data-filter="LPACEMAKER">LPACEMAKER</button>
+                <button type="button" class="btn btn-outline-primary" data-filter="NCAP">NCAP</button>
+                <button type="button" class="btn btn-outline-primary" data-filter="ONCO-PHARMACY">ONCO-PHARMACY</button>
+            </div>
+        `;
+        tableContainer.parentNode.insertBefore(filterContainer, tableContainer);
+
+        // Add filter functionality
+        const filterButtons = document.querySelectorAll('[data-filter]');
+        filterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Update active button
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+
+                const filter = this.getAttribute('data-filter');
+                const rows = document.querySelectorAll('tbody tr');
+
+                rows.forEach(row => {
+                    const drugType = row.querySelector('.drug-type-badge')?.textContent.trim();
+                    if (filter === 'all' || drugType === filter) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // Add Item Modal - Elements
+        const searchBtn = document.getElementById('search-drug-btn');
+        const searchInput = document.getElementById('drug-search');
+        const searchResults = document.getElementById('search-results');
+        const categoryFilter = document.getElementById('category-filter');
+        const initialMessage = document.getElementById('initial-message');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const manualEntryForm = document.getElementById('manual-entry-form');
+        const quickAddInput = document.getElementById('quick_add');
+        const drugIdInput = document.getElementById('drug_id');
+        const drugCategoryInput = document.getElementById('drug_category');
+        const quickQuantityInput = document.getElementById('quick_quantity');
+
+        // Store drug data for each category
+        const drugData = {
+            all: [],
+            lpacemaker: [],
+            ncap: [],
+            oncology: []
+        };
+
+        // Event Listeners
+        searchBtn.addEventListener('click', searchDrugs);
+
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchDrugs();
+            }
+        });
+
+        // Add keyup event for more responsive search
+        searchInput.addEventListener('keyup', function(e) {
+            // Don't trigger on Enter key (already handled) or navigation keys
+            if (e.key === 'Enter' || e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
+                e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Escape' ||
+                e.key === 'Tab') {
+                return;
+            }
+
+            // Debounce the search to avoid too many requests
+            clearTimeout(this.searchTimeout);
+            this.searchTimeout = setTimeout(() => {
+                const searchTerm = this.value.trim();
+                if (searchTerm.length >= 2) {
+                    searchDrugs();
+                }
+            }, 500); // Wait 500ms after typing stops
+        });
+
+        categoryFilter.addEventListener('change', function() {
+            const category = this.value;
+            if (category !== 'all') {
+                loadCategoryDrugs(category);
+            } else {
+                // If 'all' is selected and we have search text, perform search
+                if (searchInput.value.trim().length > 0) {
+                    searchDrugs();
+                } else {
+                    // Otherwise show initial message
+                    initialMessage.style.display = 'block';
+                    searchResults.innerHTML = '';
+                }
+            }
+        });
+
+        // Set quick_add to 0 (manual entry) by default
+        quickAddInput.value = '0';
+
+        // Search function
+        function searchDrugs() {
+            const searchTerm = searchInput.value.trim();
+            const category = categoryFilter.value;
+
+            if (searchTerm.length < 2 && category === 'all') {
+                alert('Please enter at least 2 characters to search or select a category');
+                return;
+            }
+
+            // Hide initial message
+            initialMessage.style.display = 'none';
+
+            // Show loading indicator
+            loadingIndicator.style.display = 'block';
+            searchResults.innerHTML = '';
+
+            // Build query parameters
+            let queryParams = new URLSearchParams();
+            if (searchTerm.length > 0) {
+                queryParams.append('q', searchTerm);
+            }
+            if (category !== 'all') {
+                queryParams.append('category', category);
+            }
+
+            // Make fetch request
+            console.log('Searching with params:', queryParams.toString());
+            fetch(`{% url 'store:search_items' %}?${queryParams.toString()}`)
+                .then(response => {
+                    console.log('Search response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+                    console.log('Search results:', data);
+
+                    // Display results
+                    displaySearchResults(data);
+                })
+                .catch(error => {
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+
+                    // Show error
+                    searchResults.innerHTML = '<div class="alert alert-danger">Error searching for drugs. Please try again.</div>';
+                    console.error('Search error:', error);
+                });
+        }
+
+        // Load drugs for a specific category
+        function loadCategoryDrugs(category) {
+            // If we already have data for this category, just display it
+            if (drugData[category].length > 0) {
+                initialMessage.style.display = 'none';
+                loadingIndicator.style.display = 'none';
+                displaySearchResults(drugData[category]);
+                return;
+            }
+
+            // Hide initial message
+            initialMessage.style.display = 'none';
+
+            // Show loading indicator
+            loadingIndicator.style.display = 'block';
+            searchResults.innerHTML = '';
+
+            // Fetch drug data
+            console.log('Loading category:', category);
+            fetch(`{% url 'store:get_category_drugs' %}?category=${category}`)
+                .then(response => {
+                    console.log('Category response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    // Store the data
+                    drugData[category] = data;
+                    console.log(`Loaded ${data.length} drugs for ${category}`);
+
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+
+                    // Display results
+                    displaySearchResults(data);
+                })
+                .catch(error => {
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+
+                    // Show error
+                    searchResults.innerHTML = '<div class="alert alert-danger">Error loading drugs. Please try again.</div>';
+                    console.error(`Error loading ${category} drugs:`, error);
+                });
+        }
+
+        // Display search results
+        function displaySearchResults(data) {
+            console.log('Displaying search results:', data);
+            if (data.length === 0) {
+                console.log('No results found');
+                searchResults.innerHTML = '<div class="alert alert-warning">No drugs found matching your criteria.</div>';
+                return;
+            }
+
+            // Create a table for the results
+            let html = `
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Unit</th>
+                            <th>Price</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Sort results by category and then by name
+            data.sort((a, b) => {
+                // First sort by category
+                if (a.type !== b.type) {
+                    return a.type.localeCompare(b.type);
+                }
+                // Then sort by name
+                return a.name.localeCompare(b.name);
+            });
+
+            // Add each drug to the table
+            data.forEach(drug => {
+                // Use the category_display field if available, otherwise convert from type
+                let drugType = drug.category_display || '';
+                if (!drugType) {
+                    if (drug.type === 'lpacemaker') {
+                        drugType = 'LPACEMAKER';
+                    } else if (drug.type === 'ncap') {
+                        drugType = 'NCAP';
+                    } else if (drug.type === 'oncology') {
+                        drugType = 'ONCOLOGY';
+                    }
+                }
+
+                // Create badge with appropriate color based on drug type
+                let badgeClass = 'bg-primary';
+                if (drugType === 'NCAP') {
+                    badgeClass = 'bg-info';
+                } else if (drugType === 'ONCOLOGY') {
+                    badgeClass = 'bg-success';
+                }
+
+                html += `
+                    <tr>
+                        <td>
+                            <div>
+                                <strong>${drug.name || ''}</strong>
+                                ${drug.brand ? `<small class="text-muted d-block">(${drug.brand})</small>` : ''}
+                                <span class="badge ${badgeClass}">${drugType}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                ${drug.unit || ''}
+                                ${drug.stock !== undefined ? `<small class="text-muted d-block">Stock: ${drug.stock}</small>` : ''}
+                            </div>
+                        </td>
+                        <td>₦${drug.price ? drug.price.toFixed(2) : '0.00'}</td>
+                        <td>
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control form-control-sm quantity-input" value="1" min="1" style="width: 60px;">
+                                <button class="btn btn-primary btn-sm add-to-form-btn"
+                                    data-id="${drug.id}"
+                                    data-category="${drug.type}"
+                                    data-name="${drug.name || ''}"
+                                    data-brand="${drug.brand || ''}"
+                                    data-type="${drugType}"
+                                    data-unit="${drug.unit || ''}"
+                                    data-price="${drug.price || ''}">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            // Hide initial message and show results
+            initialMessage.style.display = 'none';
+            searchResults.innerHTML = html;
+
+            // Add event listeners to the Add buttons
+            document.querySelectorAll('.add-to-form-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    // Get the quantity input associated with this button
+                    const quantityInput = this.parentElement.querySelector('.quantity-input');
+                    const quantity = parseInt(quantityInput.value) || 1;
+
+                    if (quantity <= 0) {
+                        alert('Quantity must be greater than zero');
+                        return;
+                    }
+
+                    // Set up quick add
+                    quickAddInput.value = '1'; // Set to quick add mode
+                    drugIdInput.value = this.dataset.id;
+                    drugCategoryInput.value = this.dataset.category;
+                    quickQuantityInput.value = quantity;
+
+                    // Show loading indicator or disable button to prevent double-clicks
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
+
+                    // Submit the form
+                    document.querySelector('#addItemModal form').submit();
+                });
+            });
+
+            // Add event listeners to the quantity inputs
+            document.querySelectorAll('.quantity-input').forEach(input => {
+                input.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent the row click event
+                });
+
+                input.addEventListener('change', function() {
+                    // Ensure the value is at least 1
+                    if (parseInt(this.value) < 1 || isNaN(parseInt(this.value))) {
+                        this.value = 1;
+                    }
+                });
+            });
+
+            // Add event listeners to the rows for manual entry
+            document.querySelectorAll('tbody tr').forEach(row => {
+                row.addEventListener('click', function(e) {
+                    // Ignore clicks on buttons and inputs
+                    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
+                        e.target.closest('button') || e.target.closest('input')) {
+                        return;
+                    }
+
+                    // Find the add button in this row
+                    const addButton = this.querySelector('.add-to-form-btn');
+                    if (!addButton) return;
+
+                    // Scroll to manual entry form
+                    manualEntryForm.scrollIntoView({ behavior: 'smooth' });
+
+                    // Fill the form with the selected drug's data
+                    document.getElementById('{{ new_item_form.drug_name.id_for_label }}').value = addButton.dataset.name;
+                    document.getElementById('{{ new_item_form.drug_brand.id_for_label }}').value = addButton.dataset.brand;
+                    document.getElementById('{{ new_item_form.drug_type.id_for_label }}').value = addButton.dataset.type;
+                    document.getElementById('{{ new_item_form.unit.id_for_label }}').value = addButton.dataset.unit;
+                    document.getElementById('{{ new_item_form.price.id_for_label }}').value = addButton.dataset.price;
+                    document.getElementById('{{ new_item_form.quantity.id_for_label }}').value = '1';
+
+                    // Set quick_add to 0 (manual entry)
+                    quickAddInput.value = '0';
+
+                    // Focus on quantity field
+                    document.getElementById('{{ new_item_form.quantity.id_for_label }}').focus();
+                });
+            });
+        }
+
+        // Form validation for add item
+        const addItemForm = document.querySelector('#addItemModal form');
+        addItemForm.addEventListener('submit', function(e) {
+            const drugName = document.getElementById('{{ new_item_form.drug_name.id_for_label }}').value.trim();
+            const drugType = document.getElementById('{{ new_item_form.drug_type.id_for_label }}').value;
+            const unit = document.getElementById('{{ new_item_form.unit.id_for_label }}').value;
+            const quantity = document.getElementById('{{ new_item_form.quantity.id_for_label }}').value;
+            const price = document.getElementById('{{ new_item_form.price.id_for_label }}').value;
+
+            if (!drugName || !drugType || !unit || !quantity || !price) {
+                e.preventDefault();
+                alert('Please fill in all required fields marked with *');
+                return false;
+            }
+
+            if (parseInt(quantity) <= 0) {
+                e.preventDefault();
+                alert('Quantity must be greater than zero');
+                return false;
+            }
+
+            if (parseFloat(price) <= 0) {
+                e.preventDefault();
+                alert('Price must be greater than zero');
+                return false;
+            }
+        });
+
+        // Reset form when modal is closed
+        const addItemModal = document.getElementById('addItemModal');
+        addItemModal.addEventListener('hidden.bs.modal', function() {
+            addItemForm.reset();
+            initialMessage.style.display = 'block';
+            loadingIndicator.style.display = 'none';
+            searchResults.innerHTML = '';
+            // Reset form fields
+            document.getElementById('{{ new_item_form.drug_name.id_for_label }}').value = '';
+            document.getElementById('{{ new_item_form.drug_brand.id_for_label }}').value = '';
+            document.getElementById('{{ new_item_form.drug_type.id_for_label }}').value = '';
+            document.getElementById('{{ new_item_form.unit.id_for_label }}').value = '';
+            document.getElementById('{{ new_item_form.quantity.id_for_label }}').value = '';
+            document.getElementById('{{ new_item_form.price.id_for_label }}').value = '';
+            categoryFilter.value = 'all';
+        });
+
+        // Initialize modal when shown
+        addItemModal.addEventListener('shown.bs.modal', function() {
+            searchInput.focus();
+        });
+    });
+</script>
+{% endblock %}
