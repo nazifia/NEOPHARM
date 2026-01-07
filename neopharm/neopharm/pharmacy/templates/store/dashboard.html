@@ -1,93 +1,321 @@
-{% extends 'base.html' %}
+{% extends 'store/base_enhanced.html' %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <!-- Welcome Section -->
-        <div class="col-12 mb-4">
-            <h2>Welcome, 
-                {% if request.user.username %}
-                    {{ request.user.username|upper }}
-                {% elif request.user.mobile %}
-                    {{ request.user.mobile }}
-                {% else %}
-                    User
-                {% endif %}
-            </h2>
+<!-- Welcome Section with Modern Design -->
+<div class="container">
+    <!-- Header with Time Greeting -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                {% now "H" as current_hour %}
+                                {% if current_hour|add:"0" < 12 %}
+                                    🌅 Good Morning,
+                                {% elif current_hour|add:"0" < 18 %}
+                                    ☀️ Good Afternoon,
+                                {% else %}
+                                    🌙 Good Evening,
+                                {% endif %}
+                                {{ user.username|default:user.mobile|title }}!
+                            </h2>
+                            <p class="text-muted mb-0">
+                                <i class="bi bi-calendar-check"></i> 
+                                {% now "F j, Y" %}
+                                <span class="mx-2">•</span>
+                                <span class="status-indicator status-online"></span>
+                                System Online
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary p-2">
+                                <i class="bi bi-shield-check"></i> Secure Session
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <!-- Quick Actions -->
-        <div class="col-12 mb-4">
-            <div class="card">
+    <!-- Quick Actions Grid -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title">Quick Actions</h5>
-                    <div class="d-flex gap-2">
-                        <a href="{% url 'store:dispense' %}" class="btn btn-primary">
-                            <i class="fas fa-prescription"></i> Dispense Drugs
+                    <h5 class="card-title mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-lightning-charge-fill text-warning"></i>
+                        Quick Actions
+                        <span class="badge bg-secondary ms-auto">Keyboard: Alt+Key</span>
+                    </h5>
+                    <div class="quick-actions">
+                        <a href="{% url 'store:dispense' %}" class="quick-action-btn">
+                            <i class="bi bi-prescription2 text-primary"></i>
+                            <span>Dispense</span>
+                            <small class="text-muted"><kbd class="kbd">Alt+D</kbd></small>
                         </a>
-                        <a href="{% url 'store:forms' %}" class="btn btn-success">
-                            <i class="fas fa-file-medical"></i> View Forms
+                        <a href="{% url 'store:forms' %}" class="quick-action-btn">
+                            <i class="bi bi-file-earmark-medical text-success"></i>
+                            <span>Forms</span>
+                            <small class="text-muted"><kbd class="kbd">Alt+F</kbd></small>
+                        </a>
+                        <a href="{% url 'store:store' %}" class="quick-action-btn">
+                            <i class="bi bi-shop text-info"></i>
+                            <span>Store</span>
+                            <small class="text-muted"><kbd class="kbd">Alt+S</kbd></small>
+                        </a>
+                        <a href="{% url 'store:cart' %}" class="quick-action-btn">
+                            <i class="bi bi-cart3 text-warning"></i>
+                            <span>Cart</span>
+                            <small class="text-muted"><kbd class="kbd">Alt+C</kbd></small>
                         </a>
                         {% if user.is_staff %}
-                        <a href="{% url 'store:add_item' %}" class="btn btn-info">
-                            <i class="fas fa-plus"></i> Add Item
+                        <a href="{% url 'store:add_item' %}" class="quick-action-btn">
+                            <i class="bi bi-plus-circle text-danger"></i>
+                            <span>Add Item</span>
+                            <small class="text-muted"><kbd class="kbd">Alt+A</kbd></small>
+                        </a>
+                        <a href="/admin/" class="quick-action-btn">
+                            <i class="bi bi-gear text-secondary"></i>
+                            <span>Admin</span>
+                            <small class="text-muted"><kbd class="kbd">Alt+X</kbd></small>
                         </a>
                         {% endif %}
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Quick Stats -->
-        <div class="col-md-4 mb-3">
-            <div class="card">
+    <!-- Inventory Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Lpacemaker Drugs</h5>
-                    <p class="card-text">Total Items: {{ lpacemaker_count|default:"0" }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="stat-value text-primary">{{ lpacemaker_count|default:"0" }}</div>
+                            <div class="stat-label">Lpacemaker Drugs</div>
+                        </div>
+                        <div class="icon-circle bg-primary bg-opacity-10">
+                            <i class="bi bi-capsule-pill text-primary fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="stat-value text-success">{{ ncap_count|default:"0" }}</div>
+                            <div class="stat-label">NCAP Drugs</div>
+                        </div>
+                        <div class="icon-circle bg-success bg-opacity-10">
+                            <i class="bi bi-capsule text-success fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="stat-value text-info">{{ oncology_count|default:"0" }}</div>
+                            <div class="stat-label">Oncology Items</div>
+                        </div>
+                        <div class="icon-circle bg-info bg-opacity-10">
+                            <i class="bi bi-activity text-info fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Info & Quick Links -->
+    <div class="row">
+        <div class="col-lg-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-semibold">
+                    <i class="bi bi-person-circle text-primary"></i> Account Information
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Username:</span>
+                        <strong>{{ user.username|default:"Not Set" }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Mobile:</span>
+                        <strong>{{ user.mobile }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Role:</span>
+                        <strong>
+                            {% if user.is_superuser %}
+                                <span class="badge bg-danger">Super Admin</span>
+                            {% elif user.is_staff %}
+                                <span class="badge bg-warning">Staff</span>
+                            {% else %}
+                                <span class="badge bg-secondary">User</span>
+                            {% endif %}
+                        </strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Last Login:</span>
+                        <strong>{{ user.last_login|default:"Never" }}</strong>
+                    </div>
+                    <hr>
+                    <a href="{% url 'store:profile' %}" class="btn btn-outline-primary w-100">
+                        <i class="bi bi-gear"></i> Manage Profile
+                    </a>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4 mb-3">
-            <div class="card">
+        <div class="col-lg-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-semibold">
+                    <i class="bi bi-rocket-takeoff text-success"></i> Quick Links
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title">NCAP Drugs</h5>
-                    <p class="card-text">Total Items: {{ ncap_count|default:"0" }}</p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'store:dispense' %}" class="btn btn-primary d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-prescription2"></i> Start Dispensing</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <a href="{% url 'store:store' %}" class="btn btn-outline-success d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-shop"></i> Browse Inventory</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <a href="{% url 'store:cart' %}" class="btn btn-outline-warning w-100">
+                                    <i class="bi bi-cart3"></i> View Cart
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{% url 'store:forms' %}" class="btn btn-outline-info w-100">
+                                    <i class="bi bi-file-earmark-medical"></i> Forms
+                                </a>
+                            </div>
+                        </div>
+                        <a href="{% url 'store:logout_user' %}" class="btn btn-outline-danger d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-box-arrow-right"></i> Logout</span>
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="col-md-4 mb-3">
-            <div class="card">
+    <!-- Tips Section -->
+    <div class="row mt-2">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title">Oncology Drugs</h5>
-                    <p class="card-text">Total Items: {{ oncology_count|default:"0" }}</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="col-12 mt-4">
-            <h3>Quick Actions</h3>
-            <div class="row">
-                <div class="col-md-3 mb-3">
-                    <a href="{% url 'store:store' %}" class="btn btn-primary w-100">View Store</a>
-                </div>
-                {% if user.is_staff or user.is_superuser %}
-                <div class="col-md-3 mb-3">
-                    <a href="{% url 'store:add_item' %}" class="btn btn-success w-100">Add New Item</a>
-                </div>
-                {% endif %}
-                <div class="col-md-3 mb-3">
-                    <a href="{% url 'store:cart' %}" class="btn btn-info w-100">View Cart</a>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <a href="{% url 'store:logout_user' %}" class="btn btn-danger w-100">Logout</a>
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="bi bi-lightbulb text-warning fs-1"></i>
+                        <div>
+                            <h6 class="mb-1 fw-semibold">Quick Tips</h6>
+                            <p class="mb-0 text-muted small">
+                                Use keyboard shortcuts <kbd class="kbd">Ctrl+K</kbd> for quick search, 
+                                <kbd class="kbd">Alt+D</kbd> to dispense, and 
+                                <kbd class="kbd">Escape</kbd> to close modals.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Keyboard Shortcuts Helper (Bottom Right) -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050; opacity: 0.7;">
+    <button class="btn btn-secondary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#shortcutsModal">
+        <i class="bi bi-keyboard"></i>
+    </button>
+</div>
+
+<!-- Shortcuts Modal -->
+<div class="modal fade" id="shortcutsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-keyboard"></i> Keyboard Shortcuts</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <td><kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">K</kbd></td>
+                            <td>Quick Search</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd">Alt</kbd> + <kbd class="kbd">D</kbd></td>
+                            <td>Go to Dispense</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd">Alt</kbd> + <kbd class="kbd">F</kbd></td>
+                            <td>View Forms</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd">Alt</kbd> + <kbd class="kbd">S</kbd></td>
+                            <td>Browse Store</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd">Alt</kbd> + <kbd class="kbd">C</kbd></td>
+                            <td>View Cart</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd">Esc</kbd></td>
+                            <td>Close Modals</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Keyboard shortcut navigation for quick actions
+document.addEventListener('keydown', function(e) {
+    if (e.altKey) {
+        switch(e.key.toLowerCase()) {
+            case 'd': window.location.href = "{% url 'store:dispense' %}"; break;
+            case 'f': window.location.href = "{% url 'store:forms' %}"; break;
+            case 's': window.location.href = "{% url 'store:store' %}"; break;
+            case 'c': window.location.href = "{% url 'store:cart' %}"; break;
+            case 'a': window.location.href = "{% url 'store:add_item' %}"; break;
+            case 'x': window.location.href = "/admin/"; break;
+        }
+    }
+});
+
+// Animate stats on load
+document.addEventListener('DOMContentLoaded', function() {
+    const statValues = document.querySelectorAll('.stat-value');
+    statValues.forEach(stat => {
+        const target = parseInt(stat.textContent);
+        if (target > 0) {
+            NEOPHARM.toast(`Diagnostics complete: ${target} active items`, 'info', 2000);
+        }
+    });
+});
+</script>
 {% endblock %}
 
 

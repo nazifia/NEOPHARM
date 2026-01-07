@@ -1,9 +1,9 @@
 
-import logging
+from django.db import transaction
 from collections import defaultdict
 from decimal import Decimal
 import json
-from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -16,7 +16,6 @@ from .models import (
     Form,
     FormItem
 )
-from .services import DrugService, CartService, FormService, ReportingService
 from .forms import *
 from django.contrib import messages
 from django.db import transaction
@@ -32,50 +31,37 @@ from .forms import UserRegistrationForm
 from django.contrib.auth.forms import PasswordChangeForm
 from .forms import UserProfileForm, ProfileForm, CustomPasswordChangeForm, EditFormForm, FormItemForm
 
-# Logger for views
-logger = logging.getLogger('pharmacy')
-
 # Create your views here.
 def is_admin(user):
-    return user.is_authenticated and (user.is_superuser or user.is_staff)
+    return user.is_authenticated and user.is_superuser or user.is_staff
 
 
 
 def index(request):
-    """Landing page and login handling."""
-    try:
-        # If user is already authenticated, redirect to dashboard
-        if request.user.is_authenticated:
+    # If user is already authenticated, redirect to dashboard
+    if request.user.is_authenticated:
+        return redirect('store:dashboard')
+
+    # Handle login form submission
+    if request.method == 'POST':
+        mobile = request.POST.get('mobile')
+        password = request.POST.get('password')
+        next_url = request.POST.get('next') or request.GET.get('next') or 'store:dashboard'
+
+        user = authenticate(request, mobile=mobile, password=password)
+        if user is not None:
+            login(request, user)
+            # Redirect to next URL if it's provided and safe
+            if next_url and next_url.startswith('/'):
+                return redirect(next_url)
             return redirect('store:dashboard')
+        else:
+            messages.error(request, 'Invalid mobile number or password')
+            # Keep the next parameter in the URL when showing the error
+            if next_url:
+                return redirect(f'{reverse("store:index")}?next={next_url}')
 
-        # Handle login form submission
-        if request.method == 'POST':
-            mobile = request.POST.get('mobile')
-            password = request.POST.get('password')
-            next_url = request.POST.get('next') or request.GET.get('next') or 'store:dashboard'
-
-            user = authenticate(request, mobile=mobile, password=password)
-            if user is not None:
-                login(request, user)
-                logger.info(f"User {user.username} logged in successfully")
-                
-                # Redirect to next URL if it's provided and safe
-                if next_url and next_url.startswith('/'):
-                    return redirect(next_url)
-                return redirect('store:dashboard')
-            else:
-                logger.warning(f"Failed login attempt for mobile: {mobile}")
-                messages.error(request, 'Invalid mobile number or password')
-                # Keep the next parameter in the URL when showing the error
-                if next_url:
-                    return redirect(f'{reverse("store:index")}?next={next_url}')
-
-        return render(request, 'store/index.html')
-    
-    except Exception as e:
-        logger.exception("Error in index view")
-        messages.error(request, "An unexpected error occurred. Please try again.")
-        return render(request, 'store/index.html')
+    return render(request, 'store/index.html')
 
 
 @login_required
@@ -268,41 +254,60 @@ def cart(request):
 
 @login_required
 @require_POST
-@csrf_protect
 def add_to_cart(request, pk, drug_type):
-    """Add item to cart with proper validation and error handling."""
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Authentication required'}, status=401)
 
+    drug_models = {
+        'lpacemaker': LpacemakerDrugs,
+        'ncap': NcapDrugs,
+        'oncology': OncologyPharmacy
+    }
+
+    DrugModel = drug_models.get(drug_type)
+    if not DrugModel:
+        return JsonResponse({'error': 'Invalid drug type'}, status=400)
+
     try:
+        drug = get_object_or_404(DrugModel, id=pk)
         quantity = int(request.POST.get('quantity', 1))
         unit = request.POST.get('unit')
 
         if quantity <= 0:
-            raise ValueError("Quantity must be greater than zero")
+            messages.error(request, 'Quantity must be greater than zero')
+            return redirect('store:dispense')
 
-        # Using service layer for clean cart operations
-        cart_item = CartService.add_to_cart(
-            user=request.user,
-            drug_type=drug_type,
-            drug_id=pk,
-            quantity=quantity,
-            unit=unit
-        )
+        # Stock check removed - allowing to add items regardless of stock level
 
-        messages.success(request, f'Added {quantity} {unit or cart_item.unit} of {cart_item.get_item.name} to cart')
-        logger.info(f"Cart item added: {request.user.username} - {cart_item.get_item.name} ({quantity})")
-        
-        return redirect('store:cart')
+        with transaction.atomic():
+            # Create or update cart item
+            cart_kwargs = {
+                'user': request.user,
+                f'{drug_type}_drug': drug,
+                'unit': unit,
+                'price': drug.price
+            }
 
-    except ValueError as e:
-        messages.error(request, str(e))
-        logger.warning(f"Cart validation error for {request.user.username}: {e}")
-        return redirect('store:dispense')
-    
+            cart_item, created = Cart.objects.get_or_create(
+                user=request.user,
+                **{f'{drug_type}_drug': drug},
+                defaults=cart_kwargs
+            )
+
+            if not created:
+                cart_item.quantity += quantity
+                cart_item.save()
+            else:
+                cart_item.quantity = quantity
+                cart_item.save()
+
+            # Stock reduction removed - no longer reducing stock when adding to cart
+
+            messages.success(request, f'Added {quantity} {unit} of {drug.name} to cart')
+            return redirect('store:cart')
+
     except Exception as e:
-        logger.exception(f"Unexpected error adding to cart: {e}")
-        messages.error(request, 'Error adding to cart. Please try again.')
+        messages.error(request, f'Error adding to cart: {str(e)}')
         return redirect('store:dispense')
 
 
@@ -500,63 +505,95 @@ def clear_cart(request):
 
 
 @login_required
-@csrf_protect
 def receipt(request):
-    """Generate receipt from cart using service layer."""
     if not request.user.is_authenticated:
         return redirect('store:index')
 
     if request.method != 'POST':
         return redirect('store:cart')
 
-    try:
-        # Get buyer information
-        buyer_name = request.POST.get('buyer_name')
-        hospital_no = request.POST.get('hospital_no')
-        ncap_no = request.POST.get('ncap_no')
-
-        # Use service layer to create form
-        form = FormService.create_form_from_cart(
-            user=request.user,
-            buyer_name=buyer_name,
-            hospital_no=hospital_no,
-            ncap_no=ncap_no
-        )
-
-        # Get cart items for display (they've been deleted by service)
-        form_items = FormItem.objects.filter(form=form).select_related('form')
-        
-        # Calculate category totals
-        category_totals = {
-            'LPACEMAKER': Decimal('0.00'),
-            'NCAP': Decimal('0.00'),
-            'ONCOLOGY': Decimal('0.00')
-        }
-
-        for item in form_items:
-            if item.drug_type in category_totals:
-                category_totals[item.drug_type] += item.subtotal
-
-        messages.success(request, f'Form {form.form_id} generated successfully and cart cleared.')
-        logger.info(f"Receipt generated: {form.form_id} by {request.user.username}, amount: {form.total_amount}")
-
-        context = {
-            'form': form,
-            'cart_items': form_items,
-            'total_price': form.total_amount,
-            'category_totals': category_totals,
-            'user': request.user,
-        }
-
-        return render(request, 'store/receipt.html', context)
-
-    except ValidationError as e:
-        messages.error(request, str(e))
-        logger.warning(f"Receipt validation error for {request.user.username}: {e}")
+    cart_items = Cart.objects.filter(user=request.user).select_related('lpacemaker_drug', 'ncap_drug', 'oncology_drug')
+    if not cart_items.exists():
+        messages.warning(request, "No items in the cart.")
         return redirect('store:cart')
-    
+
+    # Calculate total price and category totals
+    total_price = sum(item.subtotal for item in cart_items)
+
+    # Initialize category totals
+    category_totals = {
+        'LPACEMAKER': Decimal('0.00'),
+        'NCAP': Decimal('0.00'),
+        'ONCOLOGY': Decimal('0.00')
+    }
+
+    # Calculate category totals
+    for item in cart_items:
+        if item.lpacemaker_drug:
+            category_totals['LPACEMAKER'] += item.subtotal
+        elif item.ncap_drug:
+            category_totals['NCAP'] += item.subtotal
+        elif item.oncology_drug:
+            category_totals['ONCOLOGY'] += item.subtotal
+
+    try:
+        with transaction.atomic():
+            # Create form
+            form = Form.objects.create(
+                total_amount=total_price,
+                buyer_name=request.POST.get('buyer_name'),
+                hospital_no=request.POST.get('hospital_no'),
+                ncap_no=request.POST.get('ncap_no'),
+                dispensed_by=request.user
+            )
+
+            # Create FormItem records for each cart item
+            for cart_item in cart_items:
+                drug = None
+                drug_type = None
+
+                if cart_item.lpacemaker_drug:
+                    drug = cart_item.lpacemaker_drug
+                    drug_type = 'LPACEMAKER'
+                elif cart_item.ncap_drug:
+                    drug = cart_item.ncap_drug
+                    drug_type = 'NCAP'
+                elif cart_item.oncology_drug:
+                    drug = cart_item.oncology_drug
+                    drug_type = 'ONCOLOGY'
+
+                if drug:
+                    FormItem.objects.create(
+                        form=form,
+                        drug_name=drug.name,
+                        drug_brand=drug.brand,
+                        drug_type=drug_type,
+                        unit=cart_item.unit,
+                        quantity=cart_item.quantity,
+                        price=drug.price,
+                        subtotal=cart_item.subtotal
+                    )
+
+            # Store cart items for context before clearing
+            cart_items_for_context = list(cart_items)
+
+            # Clear the cart without returning items to stock
+            # since they are being dispensed
+            cart_items.delete()
+            messages.success(request, 'Form generated successfully and cart cleared.')
+
+            context = {
+                'form': form,
+                'cart_items': cart_items_for_context,
+                'total_price': total_price,
+                'category_totals': category_totals,
+                'user': request.user,
+            }
+
+            return render(request, 'store/receipt.html', context)
+
     except Exception as e:
-        logger.exception(f"Error generating receipt for {request.user.username}")
+        print(f"Error processing receipt: {e}")
         messages.error(request, "An error occurred while processing the receipt.")
         return redirect('store:cart')
 

@@ -1,15 +1,20 @@
-from django.db import models
+import logging
+from django.db import models, transaction
 from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.timezone import now
 from django.db.models.signals import post_save
 from django.contrib.auth.models import AbstractUser, Group, Permission
+from django.core.exceptions import ValidationError
 from shortuuid.django_fields import ShortUUIDField
 from datetime import datetime
 from decimal import Decimal
 from django.conf import settings
 import json
 from django.core.serializers.json import DjangoJSONEncoder
+
+# Logger for pharmacy app
+logger = logging.getLogger('pharmacy')
 
 
 # Create your models here.
@@ -101,18 +106,44 @@ class LpacemakerDrugs(models.Model):
     dosage_form = models.CharField(max_length=200, choices=DOSAGE_FORM, blank=True, null=True)
     brand = models.CharField(max_length=200, blank=True, null=True)
     unit = models.CharField(max_length=200, choices=UNIT, blank=True, null=True)
-    # cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    # markup = models.DecimalField(max_digits=6, decimal_places=2, default=0, choices=MARKUP_CHOICES)
     stock = models.PositiveIntegerField(default=0, null=True, blank=True)
-    # low_stock_threshold = models.PositiveIntegerField(default=0, null=True, blank=True)
     exp_date = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ('name',)
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['stock']),
+            models.Index(fields=['exp_date']),
+            models.Index(fields=['price']),
+        ]
 
     def __str__(self):
         return f'{self.name} {self.brand} {self.unit} {self.price} {self.stock} {self.exp_date}'
+
+    def clean(self):
+        """Validate model fields"""
+        if self.price < 0:
+            raise ValidationError("Price cannot be negative")
+        if self.stock is not None and self.stock < 0:
+            raise ValidationError("Stock cannot be negative")
+        if self.exp_date and self.exp_date < timezone.now().date():
+            logger.warning(f"Product {self.name} has expired on {self.exp_date}")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    @property
+    def total_value(self):
+        """Calculate total stock value"""
+        return Decimal(str(self.price)) * Decimal(str(self.stock or 0))
+
+    @property
+    def is_low_stock(self, threshold=10):
+        """Check if stock is below threshold"""
+        return (self.stock or 0) < threshold
 
 
 
@@ -121,18 +152,39 @@ class NcapDrugs(models.Model):
     dosage_form = models.CharField(max_length=200, choices=DOSAGE_FORM, blank=True, null=True)
     brand = models.CharField(max_length=200, blank=True, null=True)
     unit = models.CharField(max_length=200, choices=UNIT, blank=True, null=True)
-    # cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    # markup = models.DecimalField(max_digits=6, decimal_places=2, default=0, choices=MARKUP_CHOICES)
     stock = models.PositiveIntegerField(default=0, null=True, blank=True)
-    # low_stock_threshold = models.PositiveIntegerField(default=0, null=True, blank=True)
     exp_date = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ('name',)
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['stock']),
+            models.Index(fields=['exp_date']),
+            models.Index(fields=['price']),
+        ]
 
     def __str__(self):
         return f'{self.name} {self.unit} {self.price} {self.stock} {self.exp_date}'
+
+    def clean(self):
+        if self.price < 0:
+            raise ValidationError("Price cannot be negative")
+        if self.stock is not None and self.stock < 0:
+            raise ValidationError("Stock cannot be negative")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    @property
+    def total_value(self):
+        return Decimal(str(self.price)) * Decimal(str(self.stock or 0))
+
+    @property
+    def is_low_stock(self, threshold=10):
+        return (self.stock or 0) < threshold
 
 
 
@@ -141,18 +193,39 @@ class OncologyPharmacy(models.Model):
     dosage_form = models.CharField(max_length=200, choices=DOSAGE_FORM, blank=True, null=True)
     brand = models.CharField(max_length=200, blank=True, null=True)
     unit = models.CharField(max_length=200, choices=UNIT, blank=True, null=True)
-    # cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    # markup = models.DecimalField(max_digits=6, decimal_places=2, default=0, choices=MARKUP_CHOICES)
     stock = models.PositiveIntegerField(default=0, null=True, blank=True)
-    # low_stock_threshold = models.PositiveIntegerField(default=0, null=True, blank=True)
     exp_date = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ('name',)
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['stock']),
+            models.Index(fields=['exp_date']),
+            models.Index(fields=['price']),
+        ]
 
     def __str__(self):
         return f'{self.name} {self.brand} {self.unit} {self.price} {self.stock} {self.exp_date}'
+
+    def clean(self):
+        if self.price < 0:
+            raise ValidationError("Price cannot be negative")
+        if self.stock is not None and self.stock < 0:
+            raise ValidationError("Stock cannot be negative")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    @property
+    def total_value(self):
+        return Decimal(str(self.price)) * Decimal(str(self.stock or 0))
+
+    @property
+    def is_low_stock(self, threshold=10):
+        return (self.stock or 0) < threshold
 
 
 
@@ -186,7 +259,24 @@ class Cart(models.Model):
             return item.price * self.quantity
         return Decimal('0')
 
+    def clean(self):
+        """Validate cart item"""
+        if self.quantity < 1:
+            raise ValidationError("Quantity must be at least 1")
+        if self.price < 0:
+            raise ValidationError("Price cannot be negative")
+        
+        # Ensure only one drug type is specified
+        drug_count = sum([
+            self.lpacemaker_drug is not None,
+            self.ncap_drug is not None,
+            self.oncology_drug is not None
+        ])
+        if drug_count != 1:
+            raise ValidationError("Cart item must have exactly one drug type")
+
     def save(self, *args, **kwargs):
+        self.clean()
         self.subtotal = self.calculate_subtotal
         super().save(*args, **kwargs)
 
@@ -224,17 +314,46 @@ class Form(models.Model):
 
 
 class FormItem(models.Model):
+    DRUG_TYPES = [
+        ('LPACEMAKER', 'LPACEMAKER'),
+        ('NCAP', 'NCAP'),
+        ('ONCOLOGY', 'ONCOLOGY'),
+    ]
+    
     form = models.ForeignKey(Form, on_delete=models.CASCADE, related_name='items')
     drug_name = models.CharField(max_length=255)
     drug_brand = models.CharField(max_length=255, null=True, blank=True)
-    drug_type = models.CharField(max_length=50)  # LPACEMAKER, NCAP, ONCOLOGY
+    drug_type = models.CharField(max_length=50, choices=DRUG_TYPES)  # LPACEMAKER, NCAP, ONCOLOGY
     unit = models.CharField(max_length=50)
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=12, decimal_places=2)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['form', 'drug_name']),
+            models.Index(fields=['drug_type']),
+        ]
+
     def __str__(self):
         return f"{self.drug_name} - {self.form.form_id}"
+
+    def clean(self):
+        if self.price < 0:
+            raise ValidationError("Price cannot be negative")
+        if self.quantity < 1:
+            raise ValidationError("Quantity must be at least 1")
+        if self.subtotal < 0:
+            raise ValidationError("Subtotal cannot be negative")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        # Ensure subtotal is consistent
+        calculated_subtotal = Decimal(str(self.price)) * Decimal(str(self.quantity))
+        if self.subtotal != calculated_subtotal:
+            logger.warning(f"FormItem subtotal mismatch: {self.subtotal} vs {calculated_subtotal}, normalizing")
+            self.subtotal = calculated_subtotal
+        super().save(*args, **kwargs)
 
 
 class OfflineTransaction(models.Model):
