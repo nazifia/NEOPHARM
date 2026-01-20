@@ -56,6 +56,10 @@
                                         <strong>{{ item.get_item.name }}</strong>
                                         <br>
                                         <small class="text-muted">{{ item.get_item.brand }}</small>
+                                        {% if item.dosage_form %}
+                                        <br>
+                                        <small class="text-info">{{ item.dosage_form }}</small>
+                                        {% endif %}
                                     </td>
                                     <td>{{ item.unit }}</td>
                                     <td style="width: 150px;">

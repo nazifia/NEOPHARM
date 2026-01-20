@@ -73,6 +73,7 @@ class DrugService:
                         'user': user,
                         drug_field: drug,
                         'brand': drug.brand,
+                        'dosage_form': drug.dosage_form,
                         'unit': drug.unit,
                         'quantity': quantity,
                         'price': drug.price,

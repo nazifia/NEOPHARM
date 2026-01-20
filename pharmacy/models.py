@@ -154,6 +154,7 @@ class Cart(models.Model):
     ncap_drug = models.ForeignKey(NcapDrugs, on_delete=models.CASCADE, null=True, blank=True)
     oncology_drug = models.ForeignKey(OncologyPharmacy, on_delete=models.CASCADE, null=True, blank=True)
     brand = models.CharField(max_length=200, blank=True, null=True)
+    dosage_form = models.CharField(max_length=200, choices=DOSAGE_FORM, blank=True, null=True)
     unit = models.CharField(max_length=200, choices=UNIT, blank=True, null=True)
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
