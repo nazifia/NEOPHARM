@@ -19,12 +19,11 @@ urlpatterns = [
     # Cart management
     path('cart/clear/', views.clear_cart, name='clear_cart'),
 
-    # Separate return item URLs for each drug type
-    path('return/lpacemaker/<int:pk>/', views.return_lpacemaker_item, name='return_lpacemaker_item'),
-    path('return/ncap/<int:pk>/', views.return_ncap_item, name='return_ncap_item'),
-    path('return/oncology/<int:pk>/', views.return_oncology_item, name='return_oncology_item'),
+    # Consolidated return item URL
+    path('return/<str:drug_type>/<int:pk>/', views.return_item, name='return_item'),
 
     # HTMX endpoints
+
     path('quick-dispense/<str:drug_type>/<int:pk>/', views.quick_dispense, name='quick_dispense'),
     path('add-to-cart/<str:drug_type>/<int:pk>/', views.add_to_cart, name='add_to_cart'),
     path('update-cart/<int:pk>/', views.update_cart, name='update_cart'),
