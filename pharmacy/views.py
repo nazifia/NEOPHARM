@@ -30,11 +30,14 @@ from .forms import UserRegistrationForm
 from django.contrib.auth.forms import PasswordChangeForm
 from .forms import UserProfileForm, ProfileForm, CustomPasswordChangeForm, EditFormForm, FormItemForm
 
+from .services import DrugService
+
 # Create your views here.
 def is_admin(user):
     return user.is_authenticated and user.is_superuser or user.is_staff
 
 def index(request):
+
     # If user is already authenticated, redirect to dashboard
     if request.user.is_authenticated:
         return redirect('store:dashboard')
@@ -228,112 +231,19 @@ def add_to_cart(request, drug_type, pk):
     
     quantity = int(request.GET.get('quantity', 1))
     
-    if drug_type == 'lpacemaker':
-        drug = get_object_or_404(LpacemakerDrugs, pk=pk)
-        if drug.stock < quantity:
-            return JsonResponse({'error': 'Insufficient stock'}, status=400)
-        
-        cart_item = Cart.objects.filter(
-            user=request.user, 
-            lpacemaker_drug=drug,
-            form__isnull=True
-        ).first()
-        
-        if cart_item:
-            # Update existing cart item
-            new_quantity = cart_item.quantity + quantity
-            if drug.stock < new_quantity:
-                return JsonResponse({'error': 'Insufficient stock'}, status=400)
-            cart_item.quantity = new_quantity
-            cart_item.subtotal = cart_item.calculate_subtotal
-            cart_item.save()
-        else:
-            # Create new cart item
-            cart_item = Cart.objects.create(
-                user=request.user,
-                lpacemaker_drug=drug,
-                brand=drug.brand,
-                unit=drug.unit,
-                quantity=quantity,
-                price=drug.price,
-                subtotal=drug.price * quantity
-            )
-        
-        # Update stock
-        drug.stock -= quantity
-        drug.save()
-        
-    elif drug_type == 'ncap':
-        drug = get_object_or_404(NcapDrugs, pk=pk)
-        if drug.stock < quantity:
-            return JsonResponse({'error': 'Insufficient stock'}, status=400)
-        
-        cart_item = Cart.objects.filter(
-            user=request.user, 
-            ncap_drug=drug,
-            form__isnull=True
-        ).first()
-        
-        if cart_item:
-            new_quantity = cart_item.quantity + quantity
-            if drug.stock < new_quantity:
-                return JsonResponse({'error': 'Insufficient stock'}, status=400)
-            cart_item.quantity = new_quantity
-            cart_item.subtotal = cart_item.calculate_subtotal
-            cart_item.save()
-        else:
-            cart_item = Cart.objects.create(
-                user=request.user,
-                ncap_drug=drug,
-                brand=drug.brand,
-                unit=drug.unit,
-                quantity=quantity,
-                price=drug.price,
-                subtotal=drug.price * quantity
-            )
-        
-        drug.stock -= quantity
-        drug.save()
-        
-    elif drug_type == 'oncology':
-        drug = get_object_or_404(OncologyPharmacy, pk=pk)
-        if drug.stock < quantity:
-            return JsonResponse({'error': 'Insufficient stock'}, status=400)
-        
-        cart_item = Cart.objects.filter(
-            user=request.user, 
-            oncology_drug=drug,
-            form__isnull=True
-        ).first()
-        
-        if cart_item:
-            new_quantity = cart_item.quantity + quantity
-            if drug.stock < new_quantity:
-                return JsonResponse({'error': 'Insufficient stock'}, status=400)
-            cart_item.quantity = new_quantity
-            cart_item.subtotal = cart_item.calculate_subtotal
-            cart_item.save()
-        else:
-            cart_item = Cart.objects.create(
-                user=request.user,
-                oncology_drug=drug,
-                brand=drug.brand,
-                unit=drug.unit,
-                quantity=quantity,
-                price=drug.price,
-                subtotal=drug.price * quantity
-            )
-        
-        drug.stock -= quantity
-        drug.save()
+    success, message, status = DrugService.add_to_cart(request.user, drug_type, pk, quantity)
     
-    return JsonResponse({
-        'success': True,
-        'message': f'Added {quantity} {drug.name} to cart',
-        'cart_count': Cart.objects.filter(user=request.user, form__isnull=True).count()
-    })
+    if success:
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'cart_count': Cart.objects.filter(user=request.user, form__isnull=True).count()
+        })
+    else:
+        return JsonResponse({'error': message}, status=status)
 
 def cart(request):
+
     if not request.user.is_authenticated:
         return redirect('store:index')
     
@@ -375,10 +285,10 @@ def update_cart(request, pk):
         ).exclude(pk=pk)
         
         # Calculate what stock would be left after this update
-        from django.db import Q
         same_drug_other_carts = current_cart_items.filter(
             Q(lpacemaker_drug=drug) | Q(ncap_drug=drug) | Q(oncology_drug=drug)
         )
+
         
         total_in_carts = sum(item.quantity for item in same_drug_other_carts)
         
@@ -462,40 +372,47 @@ def dispense(request):
             messages.error(request, 'No items in cart to dispense!')
             return render(request, 'store/dispense.html', context)
         
-        # Create form
-        buyer_name = request.POST.get('buyer_name')
-        hospital_no = request.POST.get('hospital_no')
-        ncap_no = request.POST.get('ncap_no')
-        
-        form_record = Form.objects.create(
-            buyer_name=buyer_name,
-            hospital_no=hospital_no,
-            ncap_no=ncap_no,
-            total_amount=total,
-            dispensed_by=request.user
-        )
-        
-        # Move cart items to form items
-        for cart_item in cart_items:
-            drug = cart_item.get_item
+        try:
+            with transaction.atomic():
+                # Create form
+                buyer_name = request.POST.get('buyer_name')
+                hospital_no = request.POST.get('hospital_no')
+                ncap_no = request.POST.get('ncap_no')
+                
+                form_record = Form.objects.create(
+                    buyer_name=buyer_name,
+                    hospital_no=hospital_no,
+                    ncap_no=ncap_no,
+                    total_amount=total,
+                    dispensed_by=request.user
+                )
+                
+                # Move cart items to form items
+                for cart_item in cart_items:
+                    drug = cart_item.get_item
+                    
+                    FormItem.objects.create(
+                        form=form_record,
+                        drug_name=drug.name,
+                        drug_brand=drug.brand if hasattr(drug, 'brand') else None,
+                        drug_type=cart_item.get_drug_type().upper(),
+                        unit=cart_item.unit,
+                        quantity=cart_item.quantity,
+                        price=cart_item.price,
+                        subtotal=cart_item.subtotal
+                    )
+                    
+                    # Link cart item to form
+                    cart_item.form = form_record
+                    cart_item.save()
             
-            FormItem.objects.create(
-                form=form_record,
-                drug_name=drug.name,
-                drug_brand=drug.brand if hasattr(drug, 'brand') else None,
-                drug_type=cart_item.get_drug_type().upper(),
-                unit=cart_item.unit,
-                quantity=cart_item.quantity,
-                price=cart_item.price,
-                subtotal=cart_item.subtotal
-            )
+            messages.success(request, f'Dispensing successful! Form ID: {form_record.form_id}')
+            return redirect('store:receipt')
             
-            # Link cart item to form
-            cart_item.form = form_record
-            cart_item.save()
-        
-        messages.success(request, f'Dispensing successful! Form ID: {form_record.form_id}')
-        return redirect('store:receipt')
+        except Exception as e:
+            messages.error(request, f'Error dispensing items: {str(e)}')
+            return render(request, 'store/dispense.html', context)
+
     
     return render(request, 'store/dispense.html', context)
 
@@ -585,119 +502,20 @@ def quick_dispense(request, drug_type, pk):
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Not authenticated'}, status=401)
     
-    if drug_type == 'lpacemaker':
-        drug = get_object_or_404(LpacemakerDrugs, pk=pk)
-    elif drug_type == 'ncap':
-        drug = get_object_or_404(NcapDrugs, pk=pk)
-    elif drug_type == 'oncology':
-        drug = get_object_or_404(OncologyPharmacy, pk=pk)
+    # Reuse add_to_cart logic via service
+    success, message, status = DrugService.add_to_cart(request.user, drug_type, pk, quantity=1)
+    
+    if success:
+        return JsonResponse({
+            'success': True,
+            'message': f'Quick dispensed item',
+            'redirect_url': reverse('store:dispense')
+        })
     else:
-        return JsonResponse({'error': 'Invalid drug type'}, status=400)
-    
-    # Immediately add to cart and redirect to dispense
-    quantity = 1
-    
-    # Reuse add_to_cart logic inline
-    if drug_type == 'lpacemaker':
-        if drug.stock < quantity:
-            return JsonResponse({'error': 'Insufficient stock'}, status=400)
-        
-        cart_item = Cart.objects.filter(
-            user=request.user, 
-            lpacemaker_drug=drug,
-            form__isnull=True
-        ).first()
-        
-        if cart_item:
-            new_quantity = cart_item.quantity + quantity
-            if drug.stock < new_quantity:
-                return JsonResponse({'error': 'Insufficient stock'}, status=400)
-            cart_item.quantity = new_quantity
-            cart_item.subtotal = cart_item.calculate_subtotal
-            cart_item.save()
-        else:
-            cart_item = Cart.objects.create(
-                user=request.user,
-                lpacemaker_drug=drug,
-                brand=drug.brand,
-                unit=drug.unit,
-                quantity=quantity,
-                price=drug.price,
-                subtotal=drug.price * quantity
-            )
-        
-        drug.stock -= quantity
-        drug.save()
-        
-    elif drug_type == 'ncap':
-        if drug.stock < quantity:
-            return JsonResponse({'error': 'Insufficient stock'}, status=400)
-        
-        cart_item = Cart.objects.filter(
-            user=request.user, 
-            ncap_drug=drug,
-            form__isnull=True
-        ).first()
-        
-        if cart_item:
-            new_quantity = cart_item.quantity + quantity
-            if drug.stock < new_quantity:
-                return JsonResponse({'error': 'Insufficient stock'}, status=400)
-            cart_item.quantity = new_quantity
-            cart_item.subtotal = cart_item.calculate_subtotal
-            cart_item.save()
-        else:
-            cart_item = Cart.objects.create(
-                user=request.user,
-                ncap_drug=drug,
-                brand=drug.brand,
-                unit=drug.unit,
-                quantity=quantity,
-                price=drug.price,
-                subtotal=drug.price * quantity
-            )
-        
-        drug.stock -= quantity
-        drug.save()
-        
-    elif drug_type == 'oncology':
-        if drug.stock < quantity:
-            return JsonResponse({'error': 'Insufficient stock'}, status=400)
-        
-        cart_item = Cart.objects.filter(
-            user=request.user, 
-            oncology_drug=drug,
-            form__isnull=True
-        ).first()
-        
-        if cart_item:
-            new_quantity = cart_item.quantity + quantity
-            if drug.stock < new_quantity:
-                return JsonResponse({'error': 'Insufficient stock'}, status=400)
-            cart_item.quantity = new_quantity
-            cart_item.subtotal = cart_item.calculate_subtotal
-            cart_item.save()
-        else:
-            cart_item = Cart.objects.create(
-                user=request.user,
-                oncology_drug=drug,
-                brand=drug.brand,
-                unit=drug.unit,
-                quantity=quantity,
-                price=drug.price,
-                subtotal=drug.price * quantity
-            )
-        
-        drug.stock -= quantity
-        drug.save()
-    
-    return JsonResponse({
-        'success': True,
-        'message': f'Quick dispensed {drug.name}',
-        'redirect_url': reverse('store:dispense')
-    })
+        return JsonResponse({'error': message}, status=status)
 
 def search_items(request):
+
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Not authenticated'}, status=401)
     
@@ -939,74 +757,34 @@ def remove_form_item(request, form_id, item_id):
     messages.success(request, 'Form item removed successfully!')
     return redirect('store:view_form', form_id=form_id)
 
-def return_lpacemaker_item(request, pk):
+def return_item(request, drug_type, pk):
     if not request.user.is_authenticated:
         return redirect('store:index')
     
-    drug = get_object_or_404(LpacemakerDrugs, pk=pk)
+    try:
+        drug = DrugService.get_drug(drug_type, pk)
+    except ValueError:
+        return redirect('store:store')
     
     if request.method == 'POST':
-        return_quantity = int(request.POST.get('return_quantity'))
-        return_reason = request.POST.get('return_reason')
-        
-        if return_quantity <= drug.stock:
-            drug.stock += return_quantity
-            drug.save()
-            messages.success(request, f'{drug.name} returned successfully!')
-            return redirect('store:store')
-        else:
-            messages.error(request, 'Invalid return quantity')
+        try:
+            return_quantity = int(request.POST.get('return_quantity', 0))
+            
+            if return_quantity <= 0:
+                messages.error(request, 'Invalid return quantity')
+            else:
+                success, message = DrugService.return_item(drug_type, pk, return_quantity)
+                if success:
+                    messages.success(request, message)
+                    return redirect('store:store')
+                else:
+                    messages.error(request, message)
+        except ValueError:
+             messages.error(request, 'Invalid quantity')
     
     return render(request, 'store/return_item_modal.html', {
         'drug': drug,
-        'drug_type': 'lpacemaker',
+        'drug_type': drug_type,
         'pk': pk
     })
 
-def return_ncap_item(request, pk):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
-    
-    drug = get_object_or_404(NcapDrugs, pk=pk)
-    
-    if request.method == 'POST':
-        return_quantity = int(request.POST.get('return_quantity'))
-        return_reason = request.POST.get('return_reason')
-        
-        if return_quantity <= drug.stock:
-            drug.stock += return_quantity
-            drug.save()
-            messages.success(request, f'{drug.name} returned successfully!')
-            return redirect('store:store')
-        else:
-            messages.error(request, 'Invalid return quantity')
-    
-    return render(request, 'store/return_item_modal.html', {
-        'drug': drug,
-        'drug_type': 'ncap',
-        'pk': pk
-    })
-
-def return_oncology_item(request, pk):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
-    
-    drug = get_object_or_404(OncologyPharmacy, pk=pk)
-    
-    if request.method == 'POST':
-        return_quantity = int(request.POST.get('return_quantity'))
-        return_reason = request.POST.get('return_reason')
-        
-        if return_quantity <= drug.stock:
-            drug.stock += return_quantity
-            drug.save()
-            messages.success(request, f'{drug.name} returned successfully!')
-            return redirect('store:store')
-        else:
-            messages.error(request, 'Invalid return quantity')
-    
-    return render(request, 'store/return_item_modal.html', {
-        'drug': drug,
-        'drug_type': 'oncology',
-        'pk': pk
-    })
