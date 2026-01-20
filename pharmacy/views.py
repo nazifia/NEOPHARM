@@ -13,7 +13,9 @@ from .models import (
     OncologyPharmacy,
     Cart,
     Form,
-    FormItem
+    FormItem,
+    DOSAGE_FORM,
+    UNIT
 )
 from .forms import *
 from django.contrib import messages
@@ -131,7 +133,7 @@ def add_item(request):
         return redirect('store:index')
     
     if request.method == 'POST':
-        category = request.POST.get('category')
+        category = request.POST.get('store_type')  # Fixed field name to match template
         name = request.POST.get('name')
         dosage_form = request.POST.get('dosage_form')
         brand = request.POST.get('brand')
@@ -174,7 +176,10 @@ def add_item(request):
         messages.success(request, 'Item added successfully!')
         return redirect('store:store')
     
-    return render(request, 'store/add_item.html')
+    return render(request, 'store/add_item.html', {
+        'dosage_forms': DOSAGE_FORM,
+        'units': UNIT
+    })
 
 def edit_item(request, drug_type, pk):
     if not request.user.is_authenticated:
