@@ -97,8 +97,11 @@
                                         <tr>
                                             <th>Name</th>
                                             <th>Brand</th>
+                                            <th>Dosage Form</th>
                                             <th>Unit</th>
-                                            <th>Price</th>
+                                            <th>Cost (₦)</th>
+                                            <th>Markup (%)</th>
+                                            <th>Price (₦)</th>
                                             <th>Stock</th>
                                             <th>Expiry Date</th>
                                             {% if user.is_staff %}
@@ -111,8 +114,11 @@
                                         <tr>
                                             <td>{{ drug.name }}</td>
                                             <td>{{ drug.brand }}</td>
+                                            <td>{{ drug.dosage_form }}</td>
                                             <td>{{ drug.unit }}</td>
-                                            <td>₦{{ drug.price|floatformat:2|intcomma }}</td>
+                                            <td>{{ drug.cost|floatformat:2|intcomma }}</td>
+                                            <td>{{ drug.markup }}%</td>
+                                            <td><strong>₦{{ drug.price|floatformat:2|intcomma }}</strong></td>
                                             <td>
                                                 <span class="badge {% if drug.stock < 10 %}bg-danger{% else %}bg-success{% endif %}">
                                                     {{ drug.stock }}
@@ -154,8 +160,11 @@
                                         <tr>
                                             <th>Name</th>
                                             <th>Brand</th>
+                                            <th>Dosage Form</th>
                                             <th>Unit</th>
-                                            <th>Price</th>
+                                            <th>Cost (₦)</th>
+                                            <th>Markup (%)</th>
+                                            <th>Price (₦)</th>
                                             <th>Stock</th>
                                             <th>Expiry Date</th>
                                             {% if user.is_staff %}
@@ -168,8 +177,11 @@
                                         <tr>
                                             <td>{{ drug.name }}</td>
                                             <td>{{ drug.brand }}</td>
+                                            <td>{{ drug.dosage_form }}</td>
                                             <td>{{ drug.unit }}</td>
-                                            <td>₦{{ drug.price|floatformat:2|intcomma }}</td>
+                                            <td>{{ drug.cost|floatformat:2|intcomma }}</td>
+                                            <td>{{ drug.markup }}%</td>
+                                            <td><strong>₦{{ drug.price|floatformat:2|intcomma }}</strong></td>
                                             <td>
                                                 <span class="badge {% if drug.stock < 10 %}bg-danger{% else %}bg-success{% endif %}">
                                                     {{ drug.stock }}
@@ -211,8 +223,11 @@
                                         <tr>
                                             <th>Name</th>
                                             <th>Brand</th>
+                                            <th>Dosage Form</th>
                                             <th>Unit</th>
-                                            <th>Price</th>
+                                            <th>Cost (₦)</th>
+                                            <th>Markup (%)</th>
+                                            <th>Price (₦)</th>
                                             <th>Stock</th>
                                             <th>Expiry Date</th>
                                             {% if user.is_staff %}
@@ -225,8 +240,11 @@
                                         <tr>
                                             <td>{{ drug.name }}</td>
                                             <td>{{ drug.brand }}</td>
+                                            <td>{{ drug.dosage_form }}</td>
                                             <td>{{ drug.unit }}</td>
-                                            <td>₦{{ drug.price|floatformat:2 }}</td>
+                                            <td>{{ drug.cost|floatformat:2|intcomma }}</td>
+                                            <td>{{ drug.markup }}%</td>
+                                            <td><strong>₦{{ drug.price|floatformat:2|intcomma }}</strong></td>
                                             <td>
                                                 <span class="badge {% if drug.stock < 10 %}bg-danger{% else %}bg-success{% endif %}">
                                                     {{ drug.stock }}
@@ -259,6 +277,7 @@
                                 </table>
                             </div>
                         </div>
+
                     </div>
                 </div>
             </div>

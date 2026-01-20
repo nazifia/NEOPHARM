@@ -60,6 +60,12 @@
                                         <br>
                                         <small class="text-info">{{ item.dosage_form }}</small>
                                         {% endif %}
+                                        {% if item.get_item.cost %}
+                                        <br>
+                                        <small class="text-muted">Cost: ₦{{ item.get_item.cost|floatformat:2 }}</small>
+                                        <br>
+                                        <small class="text-muted">Markup: {{ item.get_item.markup }}%</small>
+                                        {% endif %}
                                     </td>
                                     <td>{{ item.unit }}</td>
                                     <td style="width: 150px;">
