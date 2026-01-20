@@ -120,10 +120,32 @@ def store(request):
     ncap = NcapDrugs.objects.all().order_by('name')
     oncology = OncologyPharmacy.objects.all().order_by('name')
     
+    # Calculate statistics for each category
+    lpacemaker_stats = {
+        'total_items': lpacemaker.count(),
+        'total_stock_value': sum(item.price * item.stock for item in lpacemaker),
+        'low_stock_items': [item for item in lpacemaker if item.stock < 10]
+    }
+    
+    ncap_stats = {
+        'total_items': ncap.count(),
+        'total_stock_value': sum(item.price * item.stock for item in ncap),
+        'low_stock_items': [item for item in ncap if item.stock < 10]
+    }
+    
+    oncology_stats = {
+        'total_items': oncology.count(),
+        'total_stock_value': sum(item.price * item.stock for item in oncology),
+        'low_stock_items': [item for item in oncology if item.stock < 10]
+    }
+    
     context = {
         'lpacemaker': lpacemaker,
         'ncap': ncap,
         'oncology': oncology,
+        'lpacemaker_stats': lpacemaker_stats,
+        'ncap_stats': ncap_stats,
+        'oncology_stats': oncology_stats,
     }
     
     return render(request, 'store/store.html', context)
@@ -683,11 +705,20 @@ def view_form(request, form_id):
         return redirect('store:index')
     
     form = get_object_or_404(Form, form_id=form_id)
-    form_items = FormItem.objects.filter(form=form)
+    items = FormItem.objects.filter(form=form)
+    
+    # Calculate category totals
+    category_totals = {
+        'LPACEMAKER': sum(item.subtotal for item in items if item.drug_type.upper() == 'LPACEMAKER'),
+        'NCAP': sum(item.subtotal for item in items if item.drug_type.upper() == 'NCAP'),
+        'ONCOLOGY': sum(item.subtotal for item in items if item.drug_type.upper() == 'ONCOLOGY'),
+    }
     
     context = {
         'form': form,
-        'form_items': form_items,
+        'items': items,
+        'category_totals': category_totals,
+        'total_amount': form.total_amount,
     }
     
     return render(request, 'store/form_detail.html', context)

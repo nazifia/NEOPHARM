@@ -110,7 +110,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for drug in lpacemaker_drugs %}
+                                        {% for drug in lpacemaker %}
                                         <tr>
                                             <td>{{ drug.name }}</td>
                                             <td>{{ drug.brand }}</td>
@@ -173,7 +173,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for drug in ncap_drugs %}
+                                        {% for drug in ncap %}
                                         <tr>
                                             <td>{{ drug.name }}</td>
                                             <td>{{ drug.brand }}</td>
@@ -236,7 +236,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for drug in oncology_drugs %}
+                                        {% for drug in oncology %}
                                         <tr>
                                             <td>{{ drug.name }}</td>
                                             <td>{{ drug.brand }}</td>
@@ -304,27 +304,26 @@ function confirmDelete(deleteUrl) {
 
 function openReturnModal(drugType, drugId, drugName, unit) {
     // Set the form values
-    document.getElementById('returnDrugType').value = drugType;
-    document.getElementById('returnDrugId').value = drugId;
-    document.getElementById('returnItemName').value = drugName;
-    document.getElementById('returnUnit').textContent = unit;
+    const drugTypeInput = document.getElementById('returnDrugType');
+    const drugIdInput = document.getElementById('returnDrugId');
+    const drugNameInput = document.getElementById('returnItemName');
+    const unitSpan = document.getElementById('returnUnit');
+    
+    if (drugTypeInput) drugTypeInput.value = drugType;
+    if (drugIdInput) drugIdInput.value = drugId;
+    if (drugNameInput) drugNameInput.value = drugName;
+    if (unitSpan) unitSpan.textContent = unit;
 
     // Set the form action URL
-    document.getElementById('returnItemForm').action = `/store/return/${drugType}/${drugId}/`;
+    const form = document.getElementById('returnItemForm');
+    if (form) {
+        form.action = `/store/return/${drugType}/${drugId}/`;
+    }
 
     // Open the modal
     var modal = new bootstrap.Modal(document.getElementById('returnItemModal'));
     modal.show();
 }
-
-// Add form submission handler
-document.getElementById('returnItemForm').addEventListener('submit', function(e) {
-    const quantity = document.getElementById('returnQuantity').value;
-    if (!quantity || quantity <= 0) {
-        e.preventDefault();
-        alert('Please enter a valid quantity');
-    }
-});
 </script>
 
 <!-- Return Item Modal -->
@@ -341,27 +340,31 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get the modal element
     const returnModal = document.getElementById('returnItemModal');
 
-    // Initialize the modal
-    const modal = new bootstrap.Modal(returnModal);
+    if (returnModal) {
+        // Initialize the modal
+        const modal = new bootstrap.Modal(returnModal);
 
-    // Handle modal events
-    returnModal.addEventListener('shown.bs.modal', function () {
-        // Focus on quantity input when modal is shown
-        const quantityInput = document.getElementById('return_quantity');
-        if (quantityInput) {
-            quantityInput.focus();
-        }
-    });
-
-    // Handle HTMX after swap
-    htmx.on("htmx:afterSwap", (e) => {
-        if (e.detail.target.closest('.modal-content')) {
-            // If the swap was successful and contains a success message, close the modal
-            if (e.detail.xhr.status === 200 && e.detail.xhr.responseText.includes('success')) {
-                modal.hide();
+        // Handle modal events
+        returnModal.addEventListener('shown.bs.modal', function () {
+            // Focus on quantity input when modal is shown
+            const quantityInput = document.getElementById('return_quantity');
+            if (quantityInput) {
+                quantityInput.focus();
             }
+        });
+
+        // Handle HTMX after swap - check if htmx is available
+        if (typeof htmx !== 'undefined') {
+            htmx.on("htmx:afterSwap", (e) => {
+                if (e.detail.target.closest('.modal-content')) {
+                    // If the swap was successful and contains a success message, close the modal
+                    if (e.detail.xhr.status === 200 && e.detail.xhr.responseText.includes('success')) {
+                        modal.hide();
+                    }
+                }
+            });
         }
-    });
+    }
 });
 </script>
 {% endblock %}

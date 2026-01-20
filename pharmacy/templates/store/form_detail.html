@@ -292,9 +292,9 @@
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
-                                        <strong>{{ item.name }}</strong>
-                                        {% if item.brand %}
-                                        <small class="text-muted">({{ item.brand }})</small>
+                                        <strong>{{ item.drug_name }}</strong>
+                                        {% if item.drug_brand %}
+                                        <small class="text-muted">({{ item.drug_brand }})</small>
                                         {% endif %}
                                         <small class="badge bg-info">
                                             {% if item.drug_type == 'LPACEMAKER' %}LPACEMAKER
