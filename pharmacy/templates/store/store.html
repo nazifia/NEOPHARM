@@ -99,8 +99,10 @@
                                             <th>Brand</th>
                                             <th>Dosage Form</th>
                                             <th>Unit</th>
+                                            {% if user.is_superuser %}
                                             <th>Cost (₦)</th>
                                             <th>Markup (%)</th>
+                                            {% endif %}
                                             <th>Price (₦)</th>
                                             <th>Stock</th>
                                             <th>Expiry Date</th>
@@ -116,8 +118,10 @@
                                             <td>{{ drug.brand }}</td>
                                             <td>{{ drug.dosage_form }}</td>
                                             <td>{{ drug.unit }}</td>
+                                            {% if user.is_superuser %}
                                             <td>{{ drug.cost|floatformat:2|intcomma }}</td>
                                             <td>{{ drug.markup }}%</td>
+                                            {% endif %}
                                             <td><strong>₦{{ drug.price|floatformat:2|intcomma }}</strong></td>
                                             <td>
                                                 <span class="badge {% if drug.stock < 10 %}bg-danger{% else %}bg-success{% endif %}">
@@ -162,8 +166,10 @@
                                             <th>Brand</th>
                                             <th>Dosage Form</th>
                                             <th>Unit</th>
+                                            {% if user.is_superuser %}
                                             <th>Cost (₦)</th>
                                             <th>Markup (%)</th>
+                                            {% endif %}
                                             <th>Price (₦)</th>
                                             <th>Stock</th>
                                             <th>Expiry Date</th>
@@ -179,8 +185,10 @@
                                             <td>{{ drug.brand }}</td>
                                             <td>{{ drug.dosage_form }}</td>
                                             <td>{{ drug.unit }}</td>
+                                            {% if user.is_superuser %}
                                             <td>{{ drug.cost|floatformat:2|intcomma }}</td>
                                             <td>{{ drug.markup }}%</td>
+                                            {% endif %}
                                             <td><strong>₦{{ drug.price|floatformat:2|intcomma }}</strong></td>
                                             <td>
                                                 <span class="badge {% if drug.stock < 10 %}bg-danger{% else %}bg-success{% endif %}">
@@ -225,8 +233,10 @@
                                             <th>Brand</th>
                                             <th>Dosage Form</th>
                                             <th>Unit</th>
+                                            {% if user.is_superuser %}
                                             <th>Cost (₦)</th>
                                             <th>Markup (%)</th>
+                                            {% endif %}
                                             <th>Price (₦)</th>
                                             <th>Stock</th>
                                             <th>Expiry Date</th>
@@ -242,8 +252,10 @@
                                             <td>{{ drug.brand }}</td>
                                             <td>{{ drug.dosage_form }}</td>
                                             <td>{{ drug.unit }}</td>
+                                            {% if user.is_superuser %}
                                             <td>{{ drug.cost|floatformat:2|intcomma }}</td>
                                             <td>{{ drug.markup }}%</td>
+                                            {% endif %}
                                             <td><strong>₦{{ drug.price|floatformat:2|intcomma }}</strong></td>
                                             <td>
                                                 <span class="badge {% if drug.stock < 10 %}bg-danger{% else %}bg-success{% endif %}">

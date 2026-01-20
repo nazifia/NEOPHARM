@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Manage User Permissions</h2>
+            <p class="text-muted mb-0">
+                Assign groups and individual permissions to <strong>{{ user.username }}</strong>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'store:admin_users_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Users
+            </a>
+            <a href="{% url 'store:admin_user_edit' user.id %}" class="btn btn-outline-primary">
+                <i class="fas fa-edit me-2"></i>Edit User
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Current Permissions Overview -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2 text-info"></i>Current Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">Username</small>
+                        <div><strong>{{ user.username }}</strong></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">Mobile</small>
+                        <div>{{ user.mobile }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">Assigned Groups</small>
+                        {% if user_groups %}
+                            <div class="mt-2 d-flex flex-wrap gap-1">
+                                {% for group in user_groups %}
+                                    <span class="badge bg-primary">{{ group.name }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-light mt-2 py-2 px-3">
+                                <small>None assigned</small>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <small class="text-muted">Individual Permissions</small>
+                        {% if user_perms %}
+                            <div class="mt-2 d-flex flex-wrap gap-1">
+                                {% for perm in user_perms %}
+                                    <span class="badge bg-warning text-dark">{{ perm.content_type.model }}.{{ perm.codename }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-light mt-2 py-2 px-3">
+                                <small>None assigned</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2 text-warning"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'store:admin_groups_list' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-layer-group me-2"></i>Manage Groups
+                        </a>
+                        <form method="post" action="{% url 'store:admin_user_permissions' user.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="groups" value="">
+                            <input type="hidden" name="user_permissions" value="">
+                            <button type="submit" class="btn btn-outline-success btn-sm w-100">
+                                <i class="fas fa-save me-2"></i>Save All Changes
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Permission Management Form -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lock me-2 text-warning"></i>Permission Assignment
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Groups Selection -->
+                        <div class="mb-4">
+                            <h6 class="d-flex align-items-center gap-2 mb-3">
+                                <i class="fas fa-layer-group text-primary"></i>
+                                Assign Groups
+                                <small class="text-muted fw-normal">(Inherited permissions from groups)</small>
+                            </h6>
+                            {{ form.groups|add_class:"form-control" }}
+                            {% if form.groups.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.groups.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Hold <strong>Ctrl/Cmd</strong> to select multiple groups
+                            </small>
+                        </div>
+
+                        <!-- Individual Permissions Selection -->
+                        <div class="mb-4">
+                            <h6 class="d-flex align-items-center gap-2 mb-3">
+                                <i class="fas fa-key text-warning"></i>
+                                Individual Permissions
+                                <small class="text-muted fw-normal">(Direct permissions for this user)</small>
+                            </h6>
+                            {{ form.user_permissions|add_class:"form-control" }}
+                            {% if form.user_permissions.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.user_permissions.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Hold <strong>Ctrl/Cmd</strong> to select multiple permissions
+                            </small>
+                        </div>
+
+                        <!-- Permission Descriptions -->
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-info-circle me-2"></i>Permission Guide
+                            </h6>
+                            <div class="small">
+                                <p class="mb-1"><strong>Groups:</strong> Collect permissions for easy management (e.g., "Pharmacists", "Managers")</p>
+                                <p class="mb-0"><strong>Direct Permissions:</strong> Individual permissions applied directly to this user</p>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                            <a href="{% url 'store:admin_users_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-save me-2"></i>Update Permissions
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- All Available Permissions -->
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2 text-muted"></i>Available Permissions Reference
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-2">User Management</h6>
+                            <ul class="list-unstyled small">
+                                <li><i class="fas fa-user me-2 text-muted"></i>auth.add_user</li>
+                                <li><i class="fas fa-user me-2 text-muted"></i>auth.change_user</li>
+                                <li><i class="fas fa-user me-2 text-muted"></i>auth.delete_user</li>
+                                <li><i class="fas fa-user me-2 text-muted"></i>auth.view_user</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-2">Group Management</h6>
+                            <ul class="list-unstyled small">
+                                <li><i class="fas fa-layer-group me-2 text-muted"></i>auth.add_group</li>
+                                <li><i class="fas fa-layer-group me-2 text-muted"></i>auth.change_group</li>
+                                <li><i class="fas fa-layer-group me-2 text-muted"></i>auth.delete_group</li>
+                                <li><i class="fas fa-layer-group me-2 text-muted"></i>auth.view_group</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6 mt-3">
+                            <h6 class="text-primary mb-2">Pharmacy Permissions</h6>
+                            <ul class="list-unstyled small">
+                                <li><i class="fas fa-pills me-2 text-muted"></i>pharmacy.view_drug_models</li>
+                                <li><i class="fas fa-pills me-2 text-muted"></i>pharmacy.add_drugs*</li>
+                                <li><i class="fas fa-pills me-2 text-muted"></i>pharmacy.change_drugs*</li>
+                                <li><i class="fas fa-pills me-2 text-muted"></i>pharmacy.delete_drugs*</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6 mt-3">
+                            <h6 class="text-primary mb-2">Admin Access</h6>
+                            <ul class="list-unstyled small">
+                                <li><i class="fas fa-cog me-2 text-muted"></i>admin_interface</li>
+                                <li><i class="fas fa-shield-alt me-2 text-muted"></i>Site Administration</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="small text-muted mt-2">
+                        <em>*Applied to Lpacemaker, NCAP, and Oncology drug models</em>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Enhance select elements with better UI
+    const selectElements = document.querySelectorAll('select');
+    
+    // Add aria attributes for accessibility
+    selectElements.forEach(select => {
+        select.setAttribute('size', '8');
+        select.style.cursor = 'pointer';
+    });
+
+    // Auto-submit form when Ctrl/Cmd + S is pressed
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            document.querySelector('form button[type="submit"]').click();
+        }
+    });
+
+    // Show confirmation when navigating away with unsaved changes
+    let formSubmitted = false;
+    const form = document.querySelector('form');
+    
+    form.addEventListener('submit', function() {
+        formSubmitted = true;
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (!formSubmitted && form.querySelector('select:focus')) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+});
+</script>
+
+<style>
+select.form-control {
+    max-height: 200px;
+    overflow-y: auto;
+}
+select.form-control option {
+    padding: 4px 8px;
+}
+select.form-control option:checked {
+    background-color: var(--bs-primary);
+    color: white;
+}
+.list-unstyled li {
+    margin-bottom: 0.25rem;
+}
+.alert-info {
+    background-color: #e7f3ff;
+    border-color: #cfe2fff;
+}
+</style>
+{% endblock %}

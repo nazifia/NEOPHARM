@@ -39,4 +39,17 @@ urlpatterns = [
     path('forms/<str:form_id>/items/<int:item_id>/remove/', views.remove_form_item, name='remove_form_item'),
     path('search-items/', views.search_items, name='search_items'),
     path('get-category-drugs/', views.get_category_drugs, name='get_category_drugs'),
+
+    # Admin User & Permission Management URLs
+    path('admin/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin/users/', views.admin_users_list, name='admin_users_list'),
+    path('admin/users/create/', views.admin_user_create, name='admin_user_create'),
+    path('admin/users/<int:user_id>/edit/', views.admin_user_edit, name='admin_user_edit'),
+    path('admin/users/<int:user_id>/delete/', views.admin_user_delete, name='admin_user_delete'),
+    path('admin/users/<int:user_id>/permissions/', views.admin_user_permissions, name='admin_user_permissions'),
+    path('admin/groups/', views.admin_groups_list, name='admin_groups_list'),
+    path('admin/groups/create/', views.admin_group_create, name='admin_group_create'),
+    path('admin/groups/<int:group_id>/edit/', views.admin_group_edit, name='admin_group_edit'),
+    path('admin/groups/<int:group_id>/delete/', views.admin_group_delete, name='admin_group_delete'),
+    path('admin/groups/<int:group_id>/', views.admin_group_view, name='admin_group_view'),
 ]

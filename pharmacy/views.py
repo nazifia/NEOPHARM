@@ -15,7 +15,8 @@ from .models import (
     Form,
     FormItem,
     DOSAGE_FORM,
-    UNIT
+    UNIT,
+    Profile
 )
 from .forms import *
 from django.contrib import messages
@@ -31,12 +32,17 @@ from shortuuid.django_fields import ShortUUIDField
 from .forms import UserRegistrationForm
 from django.contrib.auth.forms import PasswordChangeForm
 from .forms import UserProfileForm, ProfileForm, CustomPasswordChangeForm, EditFormForm, FormItemForm
+from .forms import UserPermissionForm, UserManageForm, GroupManageForm
 
 from .services import DrugService
 
 # Create your views here.
 def is_admin(user):
     return user.is_authenticated and user.is_superuser or user.is_staff
+
+def is_superuser_or_staff(user):
+    """Check if user is superuser or staff with proper permissions"""
+    return user.is_authenticated and (user.is_superuser or user.is_staff)
 
 def index(request):
 
@@ -951,4 +957,269 @@ def return_item(request, drug_type, pk):
         'drug_type': drug_type,
         'pk': pk
     })
+
+
+# ========== ADMIN USER & PERMISSION MANAGEMENT VIEWS ==========
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_users_list(request):
+    """Admin view to list all users"""
+    users = User.objects.all().order_by('-date_joined')
+    
+    context = {
+        'users': users,
+    }
+    return render(request, 'store/admin/users_list.html', context)
+
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_user_create(request):
+    """Admin view to create a new user"""
+    if not request.user.is_superuser:
+        messages.error(request, 'Only superusers can create new users.')
+        return redirect('store:admin_users_list')
+    
+    if request.method == 'POST':
+        form = UserManageForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'User "{user.username}" created successfully!')
+            return redirect('store:admin_users_list')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = UserManageForm()
+    
+    return render(request, 'store/admin/user_form.html', {
+        'form': form,
+        'title': 'Create New User',
+        'action': 'create'
+    })
+
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_user_edit(request, user_id):
+    """Admin view to edit a user"""
+    user = get_object_or_404(User, id=user_id)
+    
+    if not request.user.is_superuser and user != request.user:
+        messages.error(request, 'You can only edit your own profile.')
+        return redirect('store:admin_users_list')
+    
+    if request.method == 'POST':
+        form = UserManageForm(request.POST, instance=user)
+        if form.is_valid():
+            updated_user = form.save()
+            messages.success(request, f'User "{updated_user.username}" updated successfully!')
+            return redirect('store:admin_users_list')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = UserManageForm(instance=user)
+    
+    return render(request, 'store/admin/user_form.html', {
+        'form': form,
+        'title': f'Edit User: {user.username}',
+        'action': 'edit',
+        'user': user
+    })
+
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_user_delete(request, user_id):
+    """Admin view to delete a user"""
+    if not request.user.is_superuser:
+        messages.error(request, 'Only superusers can delete users.')
+        return redirect('store:admin_users_list')
+    
+    user = get_object_or_404(User, id=user_id)
+    
+    if user == request.user:
+        messages.error(request, 'You cannot delete your own account.')
+        return redirect('store:admin_users_list')
+    
+    if request.method == 'POST':
+        username = user.username
+        user.delete()
+        messages.success(request, f'User "{username}" deleted successfully!')
+        return redirect('store:admin_users_list')
+    
+    return render(request, 'store/admin/user_delete_confirm.html', {
+        'user': user
+    })
+
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_user_permissions(request, user_id):
+    """Admin view to manage a user's permissions and groups"""
+    user = get_object_or_404(User, id=user_id)
+    
+    if not request.user.is_superuser:
+        messages.error(request, 'Only superusers can manage user permissions.')
+        return redirect('store:admin_users_list')
+    
+    if request.method == 'POST':
+        form = UserPermissionForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Permissions updated for user "{user.username}"!')
+            return redirect('store:admin_user_permissions', user_id=user.id)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = UserPermissionForm(instance=user)
+    
+    # Get user's current permissions for display
+    user_perms = user.user_permissions.all().order_by('content_type__model', 'codename')
+    user_groups = user.groups.all()
+    
+    return render(request, 'store/admin/user_permissions.html', {
+        'form': form,
+        'user': user,
+        'user_perms': user_perms,
+        'user_groups': user_groups,
+        'title': f'Manage Permissions: {user.username}'
+    })
+
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_groups_list(request):
+    """Admin view to list all groups"""
+    from django.contrib.auth.models import Group
+    groups = Group.objects.all().order_by('name')
+    
+    context = {
+        'groups': groups,
+    }
+    return render(request, 'store/admin/groups_list.html', context)
+
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_group_create(request):
+    """Admin view to create a new group"""
+    from django.contrib.auth.models import Group
+    
+    if request.method == 'POST':
+        form = GroupManageForm(request.POST)
+        if form.is_valid():
+            group = form.save()
+            messages.success(request, f'Group "{group.name}" created successfully!')
+            return redirect('store:admin_groups_list')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = GroupManageForm()
+    
+    return render(request, 'store/admin/group_form.html', {
+        'form': form,
+        'title': 'Create New Group',
+        'action': 'create'
+    })
+
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_group_edit(request, group_id):
+    """Admin view to edit a group"""
+    from django.contrib.auth.models import Group
+    
+    group = get_object_or_404(Group, id=group_id)
+    
+    if request.method == 'POST':
+        form = GroupManageForm(request.POST, instance=group)
+        if form.is_valid():
+            updated_group = form.save()
+            messages.success(request, f'Group "{updated_group.name}" updated successfully!')
+            return redirect('store:admin_groups_list')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = GroupManageForm(instance=group)
+    
+    return render(request, 'store/admin/group_form.html', {
+        'form': form,
+        'title': f'Edit Group: {group.name}',
+        'action': 'edit',
+        'group': group
+    })
+
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_group_delete(request, group_id):
+    """Admin view to delete a group"""
+    from django.contrib.auth.models import Group
+    
+    group = get_object_or_404(Group, id=group_id)
+    
+    if request.method == 'POST':
+        group_name = group.name
+        group.delete()
+        messages.success(request, f'Group "{group_name}" deleted successfully!')
+        return redirect('store:admin_groups_list')
+    
+    return render(request, 'store/admin/group_delete_confirm.html', {
+        'group': group
+    })
+
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_group_view(request, group_id):
+    """Admin view to view a group's members and permissions"""
+    from django.contrib.auth.models import Group
+    
+    group = get_object_or_404(Group, id=group_id)
+    group_permissions = group.permissions.all().order_by('content_type__model', 'codename')
+    group_members = group.user_set.all().order_by('username')
+    
+    context = {
+        'group': group,
+        'group_permissions': group_permissions,
+        'group_members': group_members,
+    }
+    return render(request, 'store/admin/group_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_dashboard(request):
+    """Admin dashboard showing user statistics"""
+    from django.contrib.auth.models import Group
+    
+    total_users = User.objects.count()
+    active_users = User.objects.filter(is_active=True).count()
+    staff_users = User.objects.filter(is_staff=True).count()
+    superusers = User.objects.filter(is_superuser=True).count()
+    total_groups = Group.objects.count()
+    
+    recent_users = User.objects.order_by('-date_joined')[:5]
+    
+    context = {
+        'total_users': total_users,
+        'active_users': active_users,
+        'staff_users': staff_users,
+        'superusers': superusers,
+        'total_groups': total_groups,
+        'recent_users': recent_users,
+    }
+    
+    return render(request, 'store/admin/dashboard.html', context)
 

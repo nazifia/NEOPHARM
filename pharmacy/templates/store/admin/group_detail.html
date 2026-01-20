@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Group Details</h2>
+            <p class="text-muted mb-0">View members and permissions for <strong>{{ group.name }}</strong></p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'store:admin_groups_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Groups
+            </a>
+            <a href="{% url 'store:admin_group_edit' group.id %}" class="btn btn-primary">
+                <i class="fas fa-edit me-2"></i>Edit Group
+            </a>
+            <a href="{% url 'store:admin_group_delete' group.id %}" class="btn btn-danger">
+                <i class="fas fa-trash me-2"></i>Delete Group
+            </a>
+        </div>
+    </div>
+
+    <!-- Group Info Bar -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4 class="mb-2">
+                        <i class="fas fa-layer-group text-primary me-3"></i>{{ group.name }}
+                    </h4>
+                    <div class="row text-muted">
+                        <div class="col-md-4">
+                            <strong>Members:</strong> {{ group.user_set.count }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Permissions:</strong> {{ group.permissions.count }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Created:</strong> (Django built-in)
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div>
+                        <a href="{% url 'store:admin_dashboard' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-chart-pie me-2"></i>Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Group Members -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-users me-2 text-info"></i>Members
+                            <span class="badge bg-info ms-2">{{ group.user_set.count }}</span>
+                        </h5>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if group.user_set.all %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Mobile</th>
+                                        <th>Role</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in group.user_set.all %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ user.username }}</strong>
+                                            {% if user == request.user %}
+                                                <span class="badge bg-info ms-1">You</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ user.mobile }}</td>
+                                        <td>
+                                            {% if user.profile.user_type %}
+                                                <span class="badge bg-secondary">{{ user.profile.user_type }}</span>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'store:admin_user_permissions' user.id %}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-lock me-1"></i>Permissions
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="p-5 text-center text-muted">
+                            <i class="fas fa-user-circle fa-3x mb-3 d-block"></i>
+                            <h6>No members in this group</h6>
+                            <p class="mb-0">Assign users from their permission management page</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Group Permissions -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-key me-2 text-warning"></i>Permissions
+                            <span class="badge bg-warning text-dark ms-2">{{ group.permissions.count }}</span>
+                        </h5>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if group.permissions.all %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Permission</th>
+                                        <th>Module</th>
+                                        <th>Codename</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for perm in group.permissions.all %}
+                                    <tr>
+                                        <td>
+                                            <i class="fas fa-unlock text-muted me-2"></i>
+                                            <strong>{{ perm.name }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark">{{ perm.content_type.model }}</span>
+                                        </td>
+                                        <td>
+                                            <code>{{ perm.content_type.app_label }}.{{ perm.codename }}</code>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="p-5 text-center text-muted">
+                            <i class="fas fa-key fa-3x mb-3 d-block"></i>
+                            <h6>No permissions assigned</h6>
+                            <p class="mb-0">Assign permissions from the edit group page</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0">
+                <i class="fas fa-bolt me-2 text-warning"></i>Quick Actions
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'store:admin_group_edit' group.id %}" class="btn btn-warning">
+                    <i class="fas fa-edit me-2"></i>Edit Group
+                </a>
+                <a href="{% url 'store:admin_group_delete' group.id %}" class="btn btn-danger">
+                    <i class="fas fa-trash me-2"></i>Delete Group
+                </a>
+                <a href="{% url 'store:admin_users_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-users me-2"></i>View All Users
+                </a>
+                <a href="{% url 'store:admin_groups_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-layer-group me-2"></i>All Groups
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if group.user_set.count > 20 or group.permissions.count > 20 %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-scroll for long lists
+    const tables = document.querySelectorAll('.table-responsive');
+    tables.forEach(function(table) {
+        table.style.maxHeight = '400px';
+        table.style.overflowY = 'auto';
+    });
+});
+</script>
+{% endif %}
+
+<style>
+.table-responsive {
+    border-radius: 0.5rem;
+}
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+code {
+    background-color: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.875em;
+}
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+.badge {
+    font-weight: 500;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Manage Users</h2>
+            <p class="text-muted mb-0">View and manage all user accounts</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'store:admin_dashboard' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+            <a href="{% url 'store:admin_user_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Create User
+            </a>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2 text-muted"></i>All Users ({{ users.count }})
+                </h5>
+                <div class="d-flex gap-2">
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="userSearch" class="form-control" placeholder="Search users...">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="usersTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Username</th>
+                            <th>Mobile</th>
+                            <th>Full Name</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Staff</th>
+                            <th>Superuser</th>
+                            <th>Groups</th>
+                            <th>Permissions</th>
+                            <th>Joined</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>
+                                <strong>{{ user.username }}</strong>
+                                {% if user == request.user %}
+                                    <span class="badge bg-info ms-2">You</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.mobile }}</td>
+                            <td>{{ user.profile.full_name|default:"-" }}</td>
+                            <td>
+                                {% if user.profile.user_type %}
+                                    <span class="badge bg-secondary">{{ user.profile.user_type }}</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_staff %}
+                                    <i class="fas fa-check text-success"></i>
+                                {% else %}
+                                    <i class="fas fa-times text-muted"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_superuser %}
+                                    <i class="fas fa-check text-success"></i>
+                                {% else %}
+                                    <i class="fas fa-times text-muted"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.groups.all %}
+                                    <span class="badge bg-primary">
+                                        {{ user.groups.all|length }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-light text-muted">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.user_permissions.all %}
+                                    <span class="badge bg-warning text-dark">
+                                        {{ user.user_permissions.all|length }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-light text-muted">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ user.date_joined|date:"M d, Y" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'store:admin_user_permissions' user.id %}" 
+                                       class="btn btn-outline-secondary" 
+                                       title="Manage Permissions"
+                                       data-bs-toggle="tooltip"
+                                       data-bs-placement="top">
+                                        <i class="fas fa-lock"></i>
+                                    </a>
+                                    <a href="{% url 'store:admin_user_edit' user.id %}" 
+                                       class="btn btn-outline-primary" 
+                                       title="Edit User"
+                                       data-bs-toggle="tooltip"
+                                       data-bs-placement="top">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if user.is_superuser %}
+                                        <button class="btn btn-outline-danger" disabled title="Cannot delete superuser">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    {% elif user == request.user %}
+                                        <button class="btn btn-outline-danger" disabled title="Cannot delete yourself">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    {% else %}
+                                        <a href="{% url 'store:admin_user_delete' user.id %}" 
+                                           class="btn btn-outline-danger" 
+                                           title="Delete User"
+                                           data-bs-toggle="tooltip"
+                                           data-bs-placement="top">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center text-muted py-5">
+                                <i class="fas fa-users fa-3x mb-3 d-block"></i>
+                                No users found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    tooltips.map(function (el) {
+        return new bootstrap.Tooltip(el)
+    });
+
+    // Search functionality
+    document.getElementById('userSearch').addEventListener('keyup', function() {
+        const searchValue = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#usersTable tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchValue) ? '' : 'none';
+        });
+    });
+});
+</script>
+
+<style>
+.fa-check {
+    font-weight: 600;
+}
+.fa-times {
+    font-weight: 400;
+}
+.btn-group-sm .btn {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+}
+.badge {
+    font-weight: 500;
+}
+.table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}

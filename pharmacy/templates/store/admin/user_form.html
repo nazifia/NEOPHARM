@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">{{ title }}</h2>
+            <p class="text-muted mb-0">
+                {% if action == 'create' %}
+                    Create a new user account with custom permissions
+                {% else %}
+                    Edit user details and permissions
+                {% endif %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'store:admin_users_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Cancel
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Form Card -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0">
+                <i class="fas fa-user me-2 text-muted"></i>Account Information
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <div class="row g-4">
+                    <!-- Basic Information -->
+                    <div class="col-lg-6">
+                        <h6 class="text-primary mb-3">Basic Details</h6>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">
+                                Username <span class="text-danger">*</span>
+                            </label>
+                            {{ form.username|add_class:"form-control" }}
+                            {% if form.username.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.username.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.mobile.id_for_label }}" class="form-label">
+                                Mobile Number <span class="text-danger">*</span>
+                            </label>
+                            {{ form.mobile|add_class:"form-control" }}
+                            {% if form.mobile.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.mobile.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted">Used for login</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.full_name.id_for_label }}" class="form-label">
+                                Full Name
+                            </label>
+                            {{ form.full_name|add_class:"form-control" }}
+                            {% if form.full_name.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.full_name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.user_type.id_for_label }}" class="form-label">
+                                Role
+                            </label>
+                            {{ form.user_type|add_class:"form-control" }}
+                            {% if form.user_type.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.user_type.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Security Settings -->
+                    <div class="col-lg-6">
+                        <h6 class="text-danger mb-3">Security Settings</h6>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.password.id_for_label }}" class="form-label">
+                                Password 
+                                {% if action == 'edit' %}
+                                    <span class="text-muted">(Leave blank to keep current)</span>
+                                {% else %}
+                                    <span class="text-danger">*</span>
+                                {% endif %}
+                            </label>
+                            {{ form.password|add_class:"form-control" }}
+                            {% if form.password.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.password.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        {{ form.is_active|add_class:"form-check-input" }}
+                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                            Active Account
+                                        </label>
+                                    </div>
+                                    {% if form.is_active.errors %}
+                                        <div class="text-danger small">
+                                            {% for error in form.is_active.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="text-muted">Allow user to login</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        {{ form.is_staff|add_class:"form-check-input" }}
+                                        <label class="form-check-label" for="{{ form.is_staff.id_for_label }}">
+                                            Staff Member
+                                        </label>
+                                    </div>
+                                    {% if form.is_staff.errors %}
+                                        <div class="text-danger small">
+                                            {% for error in form.is_staff.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="text-muted">Can access admin site</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning mt-3 mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> Only grant superuser privileges to trusted administrators.
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                {{ form.is_superuser|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.is_superuser.id_for_label }}">
+                                    Superuser Status
+                                </label>
+                            </div>
+                            {% if form.is_superuser.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.is_superuser.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted">Has all permissions automatically, can manage users and groups</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                    <a href="{% url 'store:admin_users_list' %}" class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>
+                        {{ action|title }} User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if action == 'edit' and user %}
+        <!-- Additional User Info Card -->
+        <div class="row mt-4">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="mb-3 text-info">
+                            <i class="fas fa-users me-2"></i>User Groups
+                        </h6>
+                        {% if user.groups.all %}
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for group in user.groups.all %}
+                                    <span class="badge bg-primary">{{ group.name }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted mb-0">No groups assigned</p>
+                        {% endif %}
+                        <a href="{% url 'store:admin_user_permissions' user.id %}" class="btn btn-sm btn-outline-primary mt-3">
+                            Manage Permissions <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="mb-3 text-warning">
+                            <i class="fas fa-key me-2"></i>Direct Permissions
+                        </h6>
+                        {% if user.user_permissions.all %}
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for perm in user.user_permissions.all|stringformat:"s"|slice:":5" %}
+                                    <span class="badge bg-warning text-dark">{{ perm }}</span>
+                                {% endfor %}
+                                {% if user.user_permissions.all|length > 5 %}
+                                    <span class="badge bg-light text-dark">+{{ user.user_permissions.all|length|add:"-5" }} more</span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted mb-0">No direct permissions</p>
+                        {% endif %}
+                        <a href="{% url 'store:admin_user_permissions' user.id %}" class="btn btn-sm btn-outline-warning mt-3">
+                            Edit Permissions <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% if action == 'create' %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isStaff = document.getElementById('id_is_staff');
+    const isSuperuser = document.getElementById('id_is_superuser');
+    
+    function updatePermissions() {
+        if (isSuperuser.checked) {
+            isStaff.checked = true;
+            isStaff.disabled = true;
+        } else {
+            isStaff.disabled = false;
+        }
+    }
+    
+    isSuperuser.addEventListener('change', updatePermissions);
+    updatePermissions();
+});
+</script>
+{% endif %}
+
+<style>
+.form-switch .form-check-input {
+    width: 3em;
+    cursor: pointer;
+}
+.form-switch .form-check-input:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+.badge {
+    font-weight: 500;
+}
+.alert {
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}

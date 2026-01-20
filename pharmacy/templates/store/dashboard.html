@@ -181,7 +181,7 @@
                             </a>
                         </div>
                         <div class="col-sm-6 col-md-3">
-                            <a href="{% url 'store:register' %}" class="action-card bg-secondary bg-opacity-10 text-secondary d-block text-center">
+                            <a href="{% url 'store:admin_user_create' %}" class="action-card bg-secondary bg-opacity-10 text-secondary d-block text-center">
                                 <div class="action-icon">
                                     <i class="fas fa-user-plus"></i>
                                 </div>
@@ -199,6 +199,17 @@
                                 <small class="text-muted">Settings</small>
                             </a>
                         </div>
+                        {% if user.is_staff or user.is_superuser %}
+                        <div class="col-sm-6 col-md-3">
+                            <a href="{% url 'store:admin_dashboard' %}" class="action-card bg-danger bg-opacity-10 text-danger d-block text-center">
+                                <div class="action-icon">
+                                    <i class="fas fa-cogs"></i>
+                                </div>
+                                <h6 class="mb-0 fw-bold">Admin Panel</h6>
+                                <small class="text-muted">Manage users</small>
+                            </a>
+                        </div>
+                        {% endif %}
                         <div class="col-sm-6 col-md-3">
                             <a href="{% url 'store:logout_user' %}" class="action-card bg-white border text-dark d-block text-center">
                                 <div class="action-icon">
