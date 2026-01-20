@@ -9,7 +9,11 @@
     {% if not results.lpacemaker_items and not results.ncap_items and not results.oncology_items %}
         <div class="col-12">
             <div class="alert alert-info">
-                No items found matching your search criteria.
+                {% if query %}
+                    No items found matching your search criteria.
+                {% else %}
+                    No items available in the system.
+                {% endif %}
             </div>
         </div>
     {% else %}
@@ -34,9 +38,9 @@
                                    name="quantity"
                                    value="1"
                                    min="1"
+                                   max="{{ drug.stock }}"
                                    class="form-control form-control-sm"
                                    required>
-                            <input type="hidden" name="unit" value="{{ drug.unit }}">
                             <button type="submit"
                                     class="btn btn-primary btn-sm">
                                 Add to Cart
@@ -69,9 +73,9 @@
                                    name="quantity"
                                    value="1"
                                    min="1"
+                                   max="{{ drug.stock }}"
                                    class="form-control form-control-sm"
                                    required>
-                            <input type="hidden" name="unit" value="{{ drug.unit }}">
                             <button type="submit"
                                     class="btn btn-primary btn-sm">
                                 Add to Cart
@@ -104,9 +108,9 @@
                                    name="quantity"
                                    value="1"
                                    min="1"
+                                   max="{{ drug.stock }}"
                                    class="form-control form-control-sm"
                                    required>
-                            <input type="hidden" name="unit" value="{{ drug.unit }}">
                             <button type="submit"
                                     class="btn btn-primary btn-sm">
                                 Add to Cart

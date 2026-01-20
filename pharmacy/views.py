@@ -263,20 +263,34 @@ def delete_item(request, drug_type, pk):
 
 def add_to_cart(request, drug_type, pk):
     if not request.user.is_authenticated:
+        if request.method == 'POST':
+            messages.error(request, 'Not authenticated')
+            return redirect('store:index')
         return JsonResponse({'error': 'Not authenticated'}, status=401)
     
-    quantity = int(request.GET.get('quantity', 1))
+    if request.method == 'POST':
+        quantity = int(request.POST.get('quantity', 1))
+    else:
+        quantity = int(request.GET.get('quantity', 1))
     
     success, message, status = DrugService.add_to_cart(request.user, drug_type, pk, quantity)
     
     if success:
-        return JsonResponse({
-            'success': True,
-            'message': message,
-            'cart_count': Cart.objects.filter(user=request.user, form__isnull=True).count()
-        })
+        if request.method == 'POST':
+            messages.success(request, message)
+            return redirect('store:dispense')
+        else:
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'cart_count': Cart.objects.filter(user=request.user, form__isnull=True).count()
+            })
     else:
-        return JsonResponse({'error': message}, status=status)
+        if request.method == 'POST':
+            messages.error(request, message)
+            return redirect('store:dispense')
+        else:
+            return JsonResponse({'error': message}, status=status)
 
 def cart(request):
 
@@ -301,18 +315,24 @@ def cart(request):
 
 def update_cart(request, pk):
     if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Not authenticated'}, status=401)
+        return redirect('store:index')
     
     try:
         cart_item = Cart.objects.get(pk=pk, user=request.user)
-        quantity = int(request.GET.get('quantity', 1))
+        
+        # Handle form data from POST or query param from GET
+        if request.method == 'POST':
+            quantity = int(request.POST.get('quantity', 1))
+        else:
+            quantity = int(request.GET.get('quantity', 1))
         
         # Get the related drug
         drug = cart_item.get_item
         
         if quantity <= 0:
             cart_item.delete()
-            return JsonResponse({'success': True, 'action': 'removed'})
+            messages.success(request, 'Item removed from cart')
+            return redirect('store:cart')
         
         # Check stock availability
         current_cart_items = Cart.objects.filter(
@@ -321,33 +341,38 @@ def update_cart(request, pk):
         ).exclude(pk=pk)
         
         # Calculate what stock would be left after this update
-        same_drug_other_carts = current_cart_items.filter(
-            Q(lpacemaker_drug=drug) | Q(ncap_drug=drug) | Q(oncology_drug=drug)
-        )
-
+        # Use the drug type to filter correctly
+        drug_type = cart_item.get_drug_type()
+        if drug_type == 'lpacemaker':
+            same_drug_other_carts = current_cart_items.filter(lpacemaker_drug=drug)
+        elif drug_type == 'ncap':
+            same_drug_other_carts = current_cart_items.filter(ncap_drug=drug)
+        elif drug_type == 'oncology':
+            same_drug_other_carts = current_cart_items.filter(oncology_drug=drug)
+        else:
+            same_drug_other_carts = current_cart_items.none()
         
         total_in_carts = sum(item.quantity for item in same_drug_other_carts)
         
         if drug.stock + cart_item.quantity < quantity + total_in_carts:
-            return JsonResponse({'error': 'Insufficient stock'}, status=400)
+            messages.error(request, 'Insufficient stock')
+            return redirect('store:cart')
         
         # Update quantity and recalculate subtotal
         cart_item.quantity = quantity
         cart_item.subtotal = cart_item.calculate_subtotal
         cart_item.save()
         
-        return JsonResponse({
-            'success': True,
-            'subtotal': float(cart_item.subtotal),
-            'action': 'updated'
-        })
+        messages.success(request, 'Cart updated successfully')
+        return redirect('store:cart')
         
     except Cart.DoesNotExist:
-        return JsonResponse({'error': 'Cart item not found'}, status=404)
+        messages.error(request, 'Cart item not found')
+        return redirect('store:cart')
 
 def remove_from_cart(request, pk):
     if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Not authenticated'}, status=401)
+        return redirect('store:index')
     
     try:
         cart_item = Cart.objects.get(pk=pk, user=request.user)
@@ -360,12 +385,11 @@ def remove_from_cart(request, pk):
         
         cart_item.delete()
         
-        return JsonResponse({
-            'success': True,
-            'message': 'Item removed from cart'
-        })
+        messages.success(request, 'Item removed from cart')
+        return redirect('store:cart')
     except Cart.DoesNotExist:
-        return JsonResponse({'error': 'Cart item not found'}, status=404)
+        messages.error(request, 'Cart item not found')
+        return redirect('store:cart')
 
 def clear_cart(request):
     if not request.user.is_authenticated:
@@ -396,10 +420,104 @@ def dispense(request):
     # Calculate total
     total = sum(item.subtotal for item in cart_items)
     
+    # Handle search functionality
+    query = request.GET.get('q', '').strip()
+    category = request.GET.get('category', 'all')
+    
+    results = {
+        'lpacemaker_items': [],
+        'ncap_items': [],
+        'oncology_items': []
+    }
+    
+    # If no query provided, show all items (up to reasonable limit)
+    if not query:
+        if category in ['all', 'lpacemaker']:
+            all_lpacemaker = LpacemakerDrugs.objects.all()[:50]  # Limit for performance
+            for drug in all_lpacemaker:
+                results['lpacemaker_items'].append({
+                    'id': drug.id,
+                    'name': drug.name,
+                    'brand': drug.brand,
+                    'price': drug.price,
+                    'stock': drug.stock,
+                    'unit': drug.unit,
+                })
+        
+        if category in ['all', 'ncap']:
+            all_ncap = NcapDrugs.objects.all()[:50]
+            for drug in all_ncap:
+                results['ncap_items'].append({
+                    'id': drug.id,
+                    'name': drug.name,
+                    'brand': drug.brand,
+                    'price': drug.price,
+                    'stock': drug.stock,
+                    'unit': drug.unit,
+                })
+        
+        if category in ['all', 'oncology']:
+            all_oncology = OncologyPharmacy.objects.all()[:50]
+            for drug in all_oncology:
+                results['oncology_items'].append({
+                    'id': drug.id,
+                    'name': drug.name,
+                    'brand': drug.brand,
+                    'price': drug.price,
+                    'stock': drug.stock,
+                    'unit': drug.unit,
+                })
+    else:
+        # Search functionality
+        if category in ['all', 'lpacemaker']:
+            lpacemaker_results = LpacemakerDrugs.objects.filter(
+                Q(name__icontains=query) | Q(brand__icontains=query)
+            )
+            for drug in lpacemaker_results:
+                results['lpacemaker_items'].append({
+                    'id': drug.id,
+                    'name': drug.name,
+                    'brand': drug.brand,
+                    'price': drug.price,
+                    'stock': drug.stock,
+                    'unit': drug.unit,
+                })
+        
+        if category in ['all', 'ncap']:
+            ncap_results = NcapDrugs.objects.filter(
+                Q(name__icontains=query) | Q(brand__icontains=query)
+            )
+            for drug in ncap_results:
+                results['ncap_items'].append({
+                    'id': drug.id,
+                    'name': drug.name,
+                    'brand': drug.brand,
+                    'price': drug.price,
+                    'stock': drug.stock,
+                    'unit': drug.unit,
+                })
+        
+        if category in ['all', 'oncology']:
+            oncology_results = OncologyPharmacy.objects.filter(
+                Q(name__icontains=query) | Q(brand__icontains=query)
+            )
+            for drug in oncology_results:
+                results['oncology_items'].append({
+                    'id': drug.id,
+                    'name': drug.name,
+                    'brand': drug.brand,
+                    'price': drug.price,
+                    'stock': drug.stock,
+                    'unit': drug.unit,
+                })
+    
     context = {
         'form': form,
         'cart_items': cart_items,
         'total': total,
+        'results': results,
+        'query': query,
+        'category': category,
     }
     
     if request.method == 'POST':

@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.db.models import F
+from django.utils import timezone
 from .models import LpacemakerDrugs, NcapDrugs, OncologyPharmacy, Cart
 
 class DrugService:
@@ -109,3 +110,35 @@ class DrugService:
                 return True, f'{drug.name} returned successfully!'
         except Exception as e:
             return False, str(e)
+
+    @classmethod
+    def check_expired_items(cls):
+        """
+        Check all drug items and set stock to 0 for expired items.
+        Returns a tuple (expired_count, updated_items) with details of what was changed.
+        """
+        expired_items = []
+        current_date = timezone.now().date()
+        
+        # Check each drug type
+        for drug_model in [LpacemakerDrugs, NcapDrugs, OncologyPharmacy]:
+            # Get items that have expired but still have stock
+            expired_with_stock = drug_model.objects.filter(
+                exp_date__isnull=False,
+                exp_date__lt=current_date,
+                stock__gt=0
+            )
+            
+            for drug in expired_with_stock:
+                expired_items.append({
+                    'id': drug.id,
+                    'name': drug.name,
+                    'type': drug_model.__name__,
+                    'old_stock': drug.stock,
+                    'exp_date': drug.exp_date
+                })
+            
+            # Update all expired items to zero stock
+            expired_with_stock.update(stock=0)
+        
+        return len(expired_items), expired_items

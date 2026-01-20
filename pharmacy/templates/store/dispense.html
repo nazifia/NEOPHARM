@@ -42,31 +42,26 @@
                     <h4 class="mb-0">Dispense Items</h4>
                 </div>
                 <div class="card-body">
-                    <form hx-get="{% url 'store:dispense' %}"
-                          hx-target="#search-results"
-                          hx-trigger="submit, change from:select[name='category']"
-                          hx-push-url="true"
-                          class="row g-3 align-items-end">
+                    <form method="GET" class="row g-3 align-items-end">
                         <div class="col-md-6">
                             <label class="form-label">Search Items</label>
                             <input type="search"
-                                   name="search"
+                                   name="q"
                                    class="form-control"
                                    placeholder="Search by name or brand..."
-                                   value="{{ query|default:'' }}"
-                                   hx-trigger="keyup changed delay:500ms"
-                                   hx-get="{% url 'store:dispense' %}"
-                                   hx-target="#search-results">
+                                   value="{{ query|default:'' }}">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Category</label>
-                            <select name="category"
-                                    class="form-select">
+                            <select name="category" class="form-select">
                                 <option value="all" {% if category == 'all' %}selected{% endif %}>All Categories</option>
                                 <option value="lpacemaker" {% if category == 'lpacemaker' %}selected{% endif %}>Lpacemaker</option>
                                 <option value="ncap" {% if category == 'ncap' %}selected{% endif %}>NCAP</option>
                                 <option value="oncology" {% if category == 'oncology' %}selected{% endif %}>Oncology</option>
                             </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">Search</button>
                         </div>
                     </form>
                 </div>
@@ -99,21 +94,8 @@
 
 {% block extra_js %}
 <script>
-document.body.addEventListener('htmx:afterSwap', function(evt) {
-    // Update cart count if available in response
-    const cartCountSpan = document.querySelector('#cart-count');
-    if (cartCountSpan) {
-        try {
-            const response = JSON.parse(evt.detail.xhr.response);
-            if (response.cart_count) {
-                cartCountSpan.textContent = response.cart_count;
-            }
-        } catch (e) {
-            // Response wasn't JSON, which is fine
-        }
-    }
-
-    // Auto-dismiss success alerts after 3 seconds
+// Auto-dismiss success alerts after 3 seconds
+document.addEventListener('DOMContentLoaded', function() {
     const alerts = document.querySelectorAll('.alert-success');
     alerts.forEach(alert => {
         setTimeout(() => {
@@ -122,9 +104,9 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
     });
 });
 
-// Only validate that quantity is greater than zero
-document.body.addEventListener('submit', function(evt) {
-    if (evt.target.matches('.add-to-cart-form')) {
+// Validate quantity when adding to cart
+document.addEventListener('submit', function(evt) {
+    if (evt.target.matches('form[action*="add-to-cart"]')) {
         const quantityInput = evt.target.querySelector('input[name="quantity"]');
         const quantity = parseInt(quantityInput.value);
 

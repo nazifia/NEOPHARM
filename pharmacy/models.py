@@ -70,6 +70,12 @@ class User(AbstractUser):
     def __str__(self):
         return self.username if self.username else self.mobile
 
+    @property
+    def pending_cart_count(self):
+        """Get count of items in cart that are not yet part of a form"""
+        from django.db.models import Q
+        return self.cart_items.filter(form__isnull=True).count()
+
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
@@ -130,6 +136,10 @@ class LpacemakerDrugs(models.Model):
         ordering = ('name',)
 
     def save(self, *args, **kwargs):
+        # Check if item has expired and zero out stock if so
+        if self.exp_date and self.exp_date < timezone.now().date():
+            self.stock = 0
+        
         # Auto-calculate price if cost and markup are set
         if self.cost and self.markup:
             try:
@@ -138,6 +148,25 @@ class LpacemakerDrugs(models.Model):
             except (ValueError, TypeError):
                 pass
         super().save(*args, **kwargs)
+
+    def is_expired(self):
+        """Check if the item has expired based on exp_date"""
+        if not self.exp_date:
+            return False
+        return self.exp_date < timezone.now().date()
+
+    def get_expiration_status(self):
+        """Return expiration status as a string"""
+        if not self.exp_date:
+            return "No expiry date"
+        
+        if self.is_expired():
+            return f"Expired on {self.exp_date}"
+        
+        days_remaining = (self.exp_date - timezone.now().date()).days
+        if days_remaining <= 7:
+            return f"Expires soon ({days_remaining} days)"
+        return f"Valid until {self.exp_date}"
 
     def __str__(self):
         return f'{self.name} {self.brand} {self.unit} {self.price} {self.stock} {self.exp_date}'
@@ -158,6 +187,10 @@ class NcapDrugs(models.Model):
         ordering = ('name',)
 
     def save(self, *args, **kwargs):
+        # Check if item has expired and zero out stock if so
+        if self.exp_date and self.exp_date < timezone.now().date():
+            self.stock = 0
+        
         # Auto-calculate price if cost and markup are set
         if self.cost and self.markup:
             try:
@@ -168,7 +201,7 @@ class NcapDrugs(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f'{self.name} {self.unit} {self.price} {self.stock} {self.exp_date}'
+        return f'{self.name} {self.brand} {self.unit} {self.price} {self.stock} {self.exp_date}'
 
 
 class OncologyPharmacy(models.Model):
@@ -186,6 +219,10 @@ class OncologyPharmacy(models.Model):
         ordering = ('name',)
 
     def save(self, *args, **kwargs):
+        # Check if item has expired and zero out stock if so
+        if self.exp_date and self.exp_date < timezone.now().date():
+            self.stock = 0
+        
         # Auto-calculate price if cost and markup are set
         if self.cost and self.markup:
             try:
@@ -195,12 +232,31 @@ class OncologyPharmacy(models.Model):
                 pass
         super().save(*args, **kwargs)
 
+    def is_expired(self):
+        """Check if the item has expired based on exp_date"""
+        if not self.exp_date:
+            return False
+        return self.exp_date < timezone.now().date()
+
+    def get_expiration_status(self):
+        """Return expiration status as a string"""
+        if not self.exp_date:
+            return "No expiry date"
+        
+        if self.is_expired():
+            return f"Expired on {self.exp_date}"
+        
+        days_remaining = (self.exp_date - timezone.now().date()).days
+        if days_remaining <= 7:
+            return f"Expires soon ({days_remaining} days)"
+        return f"Valid until {self.exp_date}"
+
     def __str__(self):
         return f'{self.name} {self.brand} {self.unit} {self.price} {self.stock} {self.exp_date}'
 
 
 class Cart(models.Model):
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='cart_items')
     form = models.ForeignKey('Form', on_delete=models.CASCADE, null=True, blank=True, related_name='cart_items')
     lpacemaker_drug = models.ForeignKey(LpacemakerDrugs, on_delete=models.CASCADE, null=True, blank=True)
     ncap_drug = models.ForeignKey(NcapDrugs, on_delete=models.CASCADE, null=True, blank=True)

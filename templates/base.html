@@ -39,6 +39,16 @@
                             <i class="fas fa-file-medical"></i> Forms
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'store:cart' %}">
+                            <i class="fas fa-shopping-cart"></i> Cart
+                            {% if user.is_authenticated %}
+                                <span class="badge bg-warning text-dark" id="cart-count">
+                                    {{ user.pending_cart_count }}
+                                </span>
+                            {% endif %}
+                        </a>
+                    </li>
                 </ul>
                 
                 <!-- User Menu -->
