@@ -140,6 +140,9 @@ document.addEventListener('DOMContentLoaded', function() {
     costInput.addEventListener('input', calculatePrice);
     markupSelect.addEventListener('change', calculatePrice);
 
+    // Initialize calculated price on page load
+    calculatePrice();
+
     // Update selling price to match calculated price if user hasn't manually edited it
     priceInput.addEventListener('input', function() {
         // Store the manual value if needed for validation
