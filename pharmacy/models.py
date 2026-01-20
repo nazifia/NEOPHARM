@@ -219,6 +219,7 @@ class FormItem(models.Model):
     drug_name = models.CharField(max_length=255)
     drug_brand = models.CharField(max_length=255, null=True, blank=True)
     drug_type = models.CharField(max_length=50)  # LPACEMAKER, NCAP, ONCOLOGY
+    dosage_form = models.CharField(max_length=200, choices=DOSAGE_FORM, blank=True, null=True)
     unit = models.CharField(max_length=50)
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=12, decimal_places=2)

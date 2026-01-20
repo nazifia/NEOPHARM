@@ -396,6 +396,7 @@ def dispense(request):
                         drug_name=drug.name,
                         drug_brand=drug.brand if hasattr(drug, 'brand') else None,
                         drug_type=cart_item.get_drug_type().upper(),
+                        dosage_form=drug.dosage_form if hasattr(drug, 'dosage_form') else None,
                         unit=cart_item.unit,
                         quantity=cart_item.quantity,
                         price=cart_item.price,
