@@ -54,12 +54,40 @@
                             </select>
                         </div>
 
+                        <!-- Cost and Markup Section -->
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="cost" class="form-label">Cost Price (₦)</label>
+                                    <input type="number" name="cost" id="cost" class="form-control" step="0.01" min="0" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="markup" class="form-label">Markup (%)</label>
+                                    <select name="markup" id="markup" class="form-select" required>
+                                        {% for choice in markup_choices %}
+                                            <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="calculated_price" class="form-label">Calculated Price (₦)</label>
+                                    <input type="text" id="calculated_price" class="form-control" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Selling Price Override -->
                         <div class="mb-3">
-                            <label for="price" class="form-label">Price</label>
+                            <label for="price" class="form-label">Selling Price (₦) - Override calculated price if needed</label>
                             <div class="input-group">
                                 <span class="input-group-text">₦</span>
-                                <input type="number" name="price" class="form-control" step="0.01" min="0" required>
+                                <input type="number" name="price" id="price" class="form-control" step="0.01" min="0" required>
                             </div>
+                            <small class="text-muted">Edit this field to override the calculated price</small>
                         </div>
 
                         <div class="mb-3">
@@ -90,12 +118,41 @@
 
 {% block extra_js %}
 <script>
-document.getElementById('addItemForm').addEventListener('submit', function(e) {
-    const storeSelect = document.getElementById('storeSelect');
-    if (!storeSelect.value) {
-        e.preventDefault();
-        alert('Please select a store type');
+document.addEventListener('DOMContentLoaded', function() {
+    const costInput = document.getElementById('cost');
+    const markupSelect = document.getElementById('markup');
+    const calculatedPriceInput = document.getElementById('calculated_price');
+    const priceInput = document.getElementById('price');
+    const form = document.getElementById('addItemForm');
+
+    function calculatePrice() {
+        const cost = parseFloat(costInput.value) || 0;
+        const markup = parseFloat(markupSelect.value) || 0;
+        const calculated = cost + (cost * markup / 100);
+        calculatedPriceInput.value = calculated.toFixed(2);
+        // Only update selling price if it hasn't been manually edited
+        if (priceInput.value === '' || parseFloat(priceInput.value) === parseFloat(calculated.toFixed(2))) {
+            priceInput.value = calculated.toFixed(2);
+        }
     }
+
+    // Update calculated price when cost or markup changes
+    costInput.addEventListener('input', calculatePrice);
+    markupSelect.addEventListener('change', calculatePrice);
+
+    // Update selling price to match calculated price if user hasn't manually edited it
+    priceInput.addEventListener('input', function() {
+        // Store the manual value if needed for validation
+    });
+
+    form.addEventListener('submit', function(e) {
+        const storeSelect = document.getElementById('storeSelect');
+        if (!storeSelect.value) {
+            e.preventDefault();
+            alert('Please select a store type');
+        }
+    });
 });
 </script>
 {% endblock %}
+

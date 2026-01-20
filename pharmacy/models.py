@@ -92,20 +92,52 @@ class Profile(models.Model):
         return f'{self.user.username} {self.user_type}'
 
 
+MARKUP_CHOICES = [
+    ('5', '5%'),
+    ('10', '10%'),
+    ('15', '15%'),
+    ('20', '20%'),
+    ('25', '25%'),
+    ('30', '30%'),
+    ('35', '35%'),
+    ('40', '40%'),
+    ('45', '45%'),
+    ('50', '50%'),
+    ('55', '55%'),
+    ('60', '60%'),
+    ('65', '65%'),
+    ('70', '70%'),
+    ('75', '75%'),
+    ('80', '80%'),
+    ('85', '85%'),
+    ('90', '90%'),
+    ('100', '100%'),
+]
+
+
 class LpacemakerDrugs(models.Model):
     name = models.CharField(max_length=200)
     dosage_form = models.CharField(max_length=200, choices=DOSAGE_FORM, blank=True, null=True)
     brand = models.CharField(max_length=200, blank=True, null=True)
     unit = models.CharField(max_length=200, choices=UNIT, blank=True, null=True)
-    # cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    markup = models.CharField(max_length=10, choices=MARKUP_CHOICES, default='10')
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    # markup = models.DecimalField(max_digits=6, decimal_places=2, default=0, choices=MARKUP_CHOICES)
     stock = models.PositiveIntegerField(default=0, null=True, blank=True)
-    # low_stock_threshold = models.PositiveIntegerField(default=0, null=True, blank=True)
     exp_date = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ('name',)
+
+    def save(self, *args, **kwargs):
+        # Auto-calculate price if cost and markup are set
+        if self.cost and self.markup:
+            try:
+                markup_percent = float(self.markup)
+                self.price = self.cost * (1 + (markup_percent / 100))
+            except (ValueError, TypeError):
+                pass
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.name} {self.brand} {self.unit} {self.price} {self.stock} {self.exp_date}'
@@ -116,15 +148,24 @@ class NcapDrugs(models.Model):
     dosage_form = models.CharField(max_length=200, choices=DOSAGE_FORM, blank=True, null=True)
     brand = models.CharField(max_length=200, blank=True, null=True)
     unit = models.CharField(max_length=200, choices=UNIT, blank=True, null=True)
-    # cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    markup = models.CharField(max_length=10, choices=MARKUP_CHOICES, default='10')
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    # markup = models.DecimalField(max_digits=6, decimal_places=2, default=0, choices=MARKUP_CHOICES)
     stock = models.PositiveIntegerField(default=0, null=True, blank=True)
-    # low_stock_threshold = models.PositiveIntegerField(default=0, null=True, blank=True)
     exp_date = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ('name',)
+
+    def save(self, *args, **kwargs):
+        # Auto-calculate price if cost and markup are set
+        if self.cost and self.markup:
+            try:
+                markup_percent = float(self.markup)
+                self.price = self.cost * (1 + (markup_percent / 100))
+            except (ValueError, TypeError):
+                pass
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.name} {self.unit} {self.price} {self.stock} {self.exp_date}'
@@ -135,15 +176,24 @@ class OncologyPharmacy(models.Model):
     dosage_form = models.CharField(max_length=200, choices=DOSAGE_FORM, blank=True, null=True)
     brand = models.CharField(max_length=200, blank=True, null=True)
     unit = models.CharField(max_length=200, choices=UNIT, blank=True, null=True)
-    # cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    markup = models.CharField(max_length=10, choices=MARKUP_CHOICES, default='10')
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    # markup = models.DecimalField(max_digits=6, decimal_places=2, default=0, choices=MARKUP_CHOICES)
     stock = models.PositiveIntegerField(default=0, null=True, blank=True)
-    # low_stock_threshold = models.PositiveIntegerField(default=0, null=True, blank=True)
     exp_date = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ('name',)
+
+    def save(self, *args, **kwargs):
+        # Auto-calculate price if cost and markup are set
+        if self.cost and self.markup:
+            try:
+                markup_percent = float(self.markup)
+                self.price = self.cost * (1 + (markup_percent / 100))
+            except (ValueError, TypeError):
+                pass
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.name} {self.brand} {self.unit} {self.price} {self.stock} {self.exp_date}'
