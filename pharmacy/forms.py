@@ -458,3 +458,72 @@ class UserCategoryFilterForm(forms.Form):
         if not self.initial.get('status'):
             self.initial['status'] = 'all'
 
+
+class ModelCategoryFilterForm(forms.Form):
+    """Form for selecting drug model category to edit names"""
+    drug_category = forms.ChoiceField(
+        choices=[
+            ('', 'Select Model Type'),
+            ('lpacemaker', 'Lpacemaker Drugs'),
+            ('ncap', 'NCAP Drugs'),
+            ('oncology', 'Onco-Pharmacy Drugs'),
+        ],
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Drug Model Category'
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.initial.get('drug_category'):
+            self.initial['drug_category'] = ''
+
+
+class ModelNameEditForm(forms.Form):
+    """Form for editing model name and related details"""
+    drug_category = forms.CharField(
+        widget=forms.HiddenInput(),
+        required=True
+    )
+    
+    drug_id = forms.IntegerField(
+        widget=forms.HiddenInput(),
+        required=True
+    )
+    
+    name = forms.CharField(
+        max_length=200,
+        required=True,
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        label='Drug Name'
+    )
+    
+    brand = forms.CharField(
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        label='Brand Name',
+        help_text='Optional'
+    )
+    
+    dosage_form = forms.ChoiceField(
+        choices=[('', 'Select Dosage Form')] + list(DOSAGE_FORM),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Dosage Form'
+    )
+    
+    unit = forms.ChoiceField(
+        choices=[('', 'Select Unit')] + list(UNIT),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Unit'
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Get the initial drug_category if provided
+        if self.initial.get('drug_category'):
+            # You can set specific fields based on category if needed
+            pass
+

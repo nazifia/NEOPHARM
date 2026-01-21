@@ -59,4 +59,10 @@ urlpatterns = [
     path('admin/users/<int:user_id>/change-password/', views.admin_user_change_password, name='admin_user_change_password'),
     path('admin/users/<int:user_id>/set-password/', views.admin_profile_password_change, name='admin_set_password'),
     path('profile/change-password/', views.profile_change_password, name='profile_change_password'),
+    
+    # Model Name Editing URLs
+    path('admin/model-browser/', views.model_browser, name='model_browser'),
+    path('admin/model-browser/select/', views.select_model_category, name='select_model_category'),
+    path('admin/model-browser/<str:category>/', views.admin_model_list, name='admin_model_list'),
+    path('admin/model-browser/<str:category>/<int:drug_id>/edit/', views.admin_edit_model_name, name='admin_edit_model_name'),
 ]

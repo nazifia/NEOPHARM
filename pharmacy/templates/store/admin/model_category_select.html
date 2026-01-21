@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Select Drug Model Category</h2>
+            <p class="text-muted mb-0">Choose which drug model category to edit</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'store:model_browser' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Model Browser
+            </a>
+            <a href="{% url 'store:admin_dashboard' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Category Selection Form -->
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-layer-group me-2 text-primary"></i>Choose Model Category
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'store:select_model_category' %}">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-puzzle-piece me-1"></i>Drug Model Category
+                            </label>
+                            {{ form.drug_category }}
+                            {% if form.drug_category.errors %}
+                                <div class="text-danger mt-1">
+                                    {{ form.drug_category.errors|first }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Select the drug model type you want to browse and edit names
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="fas fa-arrow-right me-2"></i>Continue to List View
+                            </button>
+                            <a href="{% url 'store:model_browser' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Information Cards -->
+    <div class="row mt-4 g-3">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="bg-primary bg-opacity-10 p-2 rounded me-3">
+                            <i class="fas fa-pills text-primary"></i>
+                        </div>
+                        <h6 class="mb-0">Lpacemaker Drugs</h6>
+                    </div>
+                    <p class="text-muted mb-0 small">
+                        Heart and blood pressure medications with expiry tracking
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="bg-success bg-opacity-10 p-2 rounded me-3">
+                            <i class="fas fa-capsules text-success"></i>
+                        </div>
+                        <h6 class="mb-0">NCAP Drugs</h6>
+                    </div>
+                    <p class="text-muted mb-0 small">
+                        National health scheme medications with detailed tracking
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="bg-danger bg-opacity-10 p-2 rounded me-3">
+                            <i class="fas fa-syringe text-danger"></i>
+                        </div>
+                        <h6 class="mb-0">Onco-Pharmacy Drugs</h6>
+                    </div>
+                    <p class="text-muted mb-0 small">
+                        Cancer treatment medications with specialized inventory
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-text {
+    font-size: 0.875rem;
+}
+.btn i {
+    font-size: 0.9em;
+}
+</style>
+{% endblock %}

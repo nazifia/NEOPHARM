@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">{{ category_name }}</h2>
+            <p class="text-muted mb-0">Browse and edit drug names for the selected category</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'store:select_model_category' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Category Selection
+            </a>
+            <a href="{% url 'store:model_browser' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-layer-group me-2"></i>Model Browser
+            </a>
+            <a href="{% url 'store:admin_dashboard' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-3 me-3">
+                            <i class="fas fa-pills text-primary fs-4"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-1">Total Models</h6>
+                            <h3 class="mb-0">{{ total_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <p class="mb-0 text-muted">
+                        <i class="fas fa-info-circle me-2 text-primary"></i>
+                        Click the <i class="fas fa-edit"></i> 
+                        <strong>Edit</strong> button next to any drug to modify its name, brand, dosage form, or unit.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drug Models Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-table me-2 text-muted"></i>{{ category_name }}
+                    <span class="badge bg-secondary ms-2">{{ total_count }}</span>
+                </h5>
+                <div class="d-flex gap-2">
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="drugSearch" class="form-control" placeholder="Search drugs...">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="drugsTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Drug Name</th>
+                            <th>Brand</th>
+                            <th>Dosage Form</th>
+                            <th>Unit</th>
+                            <th>Stock</th>
+                            <th>Price</th>
+                            <th>Expiry</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for drug in drugs %}
+                        <tr>
+                            <td>
+                                <strong>{{ drug.name }}</strong>
+                                {% if drug.is_expired %}
+                                    <span class="badge bg-danger ms-2">Expired</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if drug.brand %}
+                                    {{ drug.brand }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if drug.dosage_form %}
+                                    <span class="badge bg-info">{{ drug.dosage_form }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if drug.unit %}
+                                    <span class="badge bg-secondary">{{ drug.unit }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="{% if drug.stock <= 10 %}text-danger{% elif drug.stock <= 20 %}text-warning{% else %}text-success{% endif %} fw-bold">
+                                    {{ drug.stock|default:"0" }}
+                                </span>
+                            </td>
+                            <td>
+                                ${{ drug.price|floatformat:2 }}
+                            </td>
+                            <td>
+                                {% if drug.exp_date %}
+                                    <small>{{ drug.exp_date|date:"M d, Y" }}</small>
+                                    {% if drug.expiration_status %}
+                                        <br><small class="text-muted">{{ drug.get_expiration_status }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'store:admin_edit_model_name' category=category drug_id=drug.id %}" 
+                                       class="btn btn-outline-primary" 
+                                       title="Edit Drug"
+                                       data-bs-toggle="tooltip"
+                                       data-bs-placement="top">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-5">
+                                <i class="fas fa-pills fa-3x mb-3 d-block"></i>
+                                No drugs found in this category
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    tooltips.map(function (el) {
+        return new bootstrap.Tooltip(el)
+    });
+
+    // Search functionality
+    document.getElementById('drugSearch').addEventListener('keyup', function() {
+        const searchValue = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#drugsTable tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchValue) ? '' : 'none';
+        });
+    });
+});
+</script>
+
+<style>
+.badge {
+    font-weight: 500;
+}
+.fa-check {
+    font-weight: 600;
+}
+.fa-times {
+    font-weight: 400;
+}
+.btn-group-sm .btn {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+}
+.table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}

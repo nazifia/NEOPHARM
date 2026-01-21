@@ -32,7 +32,7 @@ from shortuuid.django_fields import ShortUUIDField
 from .forms import UserRegistrationForm
 from django.contrib.auth.forms import PasswordChangeForm
 from .forms import UserProfileForm, ProfileForm, CustomPasswordChangeForm, EditFormForm, FormItemForm
-from .forms import UserPermissionForm, UserManageForm, GroupManageForm, UserCategoryFilterForm, AdminPasswordChangeForm, UserSelfPasswordChangeForm
+from .forms import UserPermissionForm, UserManageForm, GroupManageForm, UserCategoryFilterForm, AdminPasswordChangeForm, UserSelfPasswordChangeForm, ModelCategoryFilterForm, ModelNameEditForm
 
 from .services import DrugService
 
@@ -1420,4 +1420,143 @@ def admin_profile_password_change(request, user_id):
         'title': f'Set New Password: {user.username}',
         'is_set': True
     })
+
+
+# ========== MODEL NAME EDITING VIEWS ==========
+
+@login_required
+@user_passes_test(is_admin)
+def model_browser(request):
+    """Admin view to browse available drug models to edit"""
+    # Get counts for each drug category
+    lpacemaker_count = LpacemakerDrugs.objects.count()
+    ncap_count = NcapDrugs.objects.count()
+    oncology_count = OncologyPharmacy.objects.count()
+    
+    context = {
+        'title': 'Model Browser',
+        'lpacemaker_count': lpacemaker_count,
+        'ncap_count': ncap_count,
+        'oncology_count': oncology_count,
+    }
+    return render(request, 'store/admin/model_browser.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def select_model_category(request):
+    """Admin view to select drug model category for editing"""
+    if request.method == 'POST':
+        form = ModelCategoryFilterForm(request.POST)
+        if form.is_valid():
+            category = form.cleaned_data['drug_category']
+            # Redirect to model list view with category
+            return redirect('store:admin_model_list', category=category)
+    else:
+        form = ModelCategoryFilterForm()
+    
+    return render(request, 'store/admin/model_category_select.html', {
+        'form': form,
+        'title': 'Select Model Category'
+    })
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_model_list(request, category):
+    """Admin view to list drug models from a specific category for editing"""
+    # Map category to appropriate model
+    model_map = {
+        'lpacemaker': LpacemakerDrugs,
+        'ncap': NcapDrugs,
+        'oncology': OncologyPharmacy,
+    }
+    
+    if category not in model_map:
+        messages.error(request, 'Invalid drug category selected.')
+        return redirect('store:model_browser')
+    
+    model = model_map[category]
+    
+    # Get all drugs from the selected category
+    drugs = model.objects.all().order_by('name')
+    
+    # Get total count
+    total_count = drugs.count()
+    
+    context = {
+        'drugs': drugs,
+        'category': category,
+        'category_name': dict([
+            ('lpacemaker', 'Lpacemaker Drugs'),
+            ('ncap', 'NCAP Drugs'),
+            ('oncology', 'Onco-Pharmacy Drugs')
+        ]).get(category, category),
+        'total_count': total_count,
+        'title': f'Edit {category.title()} Drug Names'
+    }
+    
+    return render(request, 'store/admin/model_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_edit_model_name(request, category, drug_id):
+    """Admin view to edit the name and details of a specific drug model"""
+    # Map category to appropriate model
+    model_map = {
+        'lpacemaker': LpacemakerDrugs,
+        'ncap': NcapDrugs,
+        'oncology': OncologyPharmacy,
+    }
+    
+    if category not in model_map:
+        messages.error(request, 'Invalid drug category selected.')
+        return redirect('store:model_browser')
+    
+    model = model_map[category]
+    
+    # Get the specific drug object
+    try:
+        drug = model.objects.get(id=drug_id)
+    except model.DoesNotExist:
+        messages.error(request, 'Drug not found.')
+        return redirect('store:admin_model_list', category=category)
+    
+    if request.method == 'POST':
+        form = ModelNameEditForm(request.POST)
+        if form.is_valid():
+            # Update drug fields
+            drug.name = form.cleaned_data['name']
+            drug.brand = form.cleaned_data['brand']
+            drug.dosage_form = form.cleaned_data['dosage_form']
+            drug.unit = form.cleaned_data['unit']
+            
+            drug.save()
+            
+            messages.success(request, f'Drug "{drug.name}" updated successfully!')
+            return redirect('store:admin_model_list', category=category)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        # Pre-populate the form with current drug data
+        form = ModelNameEditForm(initial={
+            'drug_category': category,
+            'drug_id': drug_id,
+            'name': drug.name,
+            'brand': drug.brand if drug.brand else '',
+            'dosage_form': drug.dosage_form if drug.dosage_form else '',
+            'unit': drug.unit if drug.unit else '',
+        })
+    
+    context = {
+        'form': form,
+        'drug': drug,
+        'category': category,
+        'title': f'Edit Drug: {drug.name}'
+    }
+    
+    return render(request, 'store/admin/model_edit.html', context)
 
