@@ -18,12 +18,76 @@
         </div>
     </div>
 
+    <!-- User Categories & Statistics -->
+    <div class="row g-3 mb-4">
+        {% for category_name, stats in user_stats.items %}
+        <div class="col-md-4">
+            <a href="{% url 'store:admin_users_by_category' category=category_name %}" 
+               class="card border-0 shadow-sm h-100 text-decoration-none text-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1 text-muted">{{ category_name }}</h6>
+                            <h4 class="mb-0 fw-bold">{{ stats.count }}</h4>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge {% if stats.active > 0 %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ stats.active }} active
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Filter Form -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    {{ filter_form.category.label_tag }}
+                    {{ filter_form.category }}
+                </div>
+                <div class="col-md-4">
+                    {{ filter_form.status.label_tag }}
+                    {{ filter_form.status }}
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i> Apply Filter
+                    </button>
+                </div>
+                {% if selected_category or selected_status != 'all' %}
+                <div class="col-12">
+                    <a href="{% url 'store:admin_users_list' %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i> Clear Filters
+                    </a>
+                    {% if selected_category %}
+                    <span class="ms-2 text-muted">
+                        Active filter: <strong>{{ selected_category }}</strong> 
+                        {% if selected_status != 'all' %}({{ selected_status }}){% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
     <!-- Users Table -->
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white py-3">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-users me-2 text-muted"></i>All Users ({{ users.count }})
+                    <i class="fas fa-users me-2 text-muted"></i>
+                    {% if selected_category %}
+                        {{ selected_category }} Users
+                    {% else %}
+                        All Users
+                    {% endif %}
+                    <span class="badge bg-secondary ms-2">{{ users.count }}</span>
                 </h5>
                 <div class="d-flex gap-2">
                     <div class="input-group input-group-sm">

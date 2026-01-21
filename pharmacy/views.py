@@ -32,17 +32,33 @@ from shortuuid.django_fields import ShortUUIDField
 from .forms import UserRegistrationForm
 from django.contrib.auth.forms import PasswordChangeForm
 from .forms import UserProfileForm, ProfileForm, CustomPasswordChangeForm, EditFormForm, FormItemForm
-from .forms import UserPermissionForm, UserManageForm, GroupManageForm
+from .forms import UserPermissionForm, UserManageForm, GroupManageForm, UserCategoryFilterForm, AdminPasswordChangeForm, UserSelfPasswordChangeForm
 
 from .services import DrugService
 
 # Create your views here.
 def is_admin(user):
-    return user.is_authenticated and user.is_superuser or user.is_staff
+    """Check if user is an Admin based on profile user_type"""
+    return user.is_authenticated and hasattr(user, 'profile') and user.profile.user_type == 'Admin'
 
 def is_superuser_or_staff(user):
     """Check if user is superuser or staff with proper permissions"""
     return user.is_authenticated and (user.is_superuser or user.is_staff)
+
+# Custom decorators for redirect handling
+def admin_required(view_func):
+    """Decorator that checks if user is an admin and redirects if not"""
+    @user_passes_test(is_admin, login_url='store:dashboard', redirect_field_name=None)
+    def wrapped_view(request, *args, **kwargs):
+        return view_func(request, *args, **kwargs)
+    return wrapped_view
+
+def superuser_or_staff_required(view_func):
+    """Decorator that checks if user is superuser or staff and redirects if not"""
+    @user_passes_test(is_superuser_or_staff, login_url='store:dashboard', redirect_field_name=None)
+    def wrapped_view(request, *args, **kwargs):
+        return view_func(request, *args, **kwargs)
+    return wrapped_view
 
 def index(request):
 
@@ -66,11 +82,10 @@ def index(request):
 
     return render(request, 'store/index.html')
 
+@login_required
+@superuser_or_staff_required
 def register_user(request):
-    if not request.user.is_staff:
-        messages.error(request, 'You do not have permission to register users.')
-        return redirect('store:dashboard')
-    
+    """Register new users - now redirects unauthorized users to dashboard"""
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
@@ -108,12 +123,34 @@ def dashboard(request):
     # Recent forms
     recent_forms = Form.objects.all().order_by('-date')[:5]
     
+    # User statistics (for staff/superusers)
+    user_stats = {}
+    if request.user.is_staff or request.user.is_superuser:
+        from django.contrib.auth.models import Group
+        
+        # User counts by category
+        admin_users = User.objects.filter(profile__user_type='Admin').count()
+        pharmacist_users = User.objects.filter(profile__user_type='Pharmacist').count()
+        tech_users = User.objects.filter(profile__user_type='Pharm-Tech').count()
+        total_users = User.objects.count()
+        active_staff = User.objects.filter(is_staff=True, is_active=True).count()
+        
+        user_stats = {
+            'admin_users': admin_users,
+            'pharmacist_users': pharmacist_users,
+            'tech_users': tech_users,
+            'total_users': total_users,
+            'active_staff': active_staff,
+            'total_groups': Group.objects.count(),
+        }
+    
     context = {
         'lpacemaker_count': lpacemaker_count,
         'ncap_count': ncap_count,
         'oncology_count': oncology_count,
         'cart_count': cart_count,
         'recent_forms': recent_forms,
+        'user_stats': user_stats,
     }
     
     return render(request, 'store/dashboard.html', context)
@@ -962,19 +999,69 @@ def return_item(request, drug_type, pk):
 # ========== ADMIN USER & PERMISSION MANAGEMENT VIEWS ==========
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
-def admin_users_list(request):
-    """Admin view to list all users"""
-    users = User.objects.all().order_by('-date_joined')
+@user_passes_test(is_admin)
+def admin_users_list(request, category=None):
+    """Admin view to list all users with filtering and categories"""
+    # Get all users for stats
+    all_users = User.objects.all()
+    
+    # Handle filtering from GET params or URL parameter
+    filter_category = request.GET.get('category', category or '')
+    status = request.GET.get('status', 'all')
+    
+    # Filter by category
+    users = User.objects.all()
+    if filter_category:
+        users = users.filter(profile__user_type=filter_category)
+    
+    # Filter by status
+    if status == 'active':
+        users = users.filter(is_active=True)
+    elif status == 'inactive':
+        users = users.filter(is_active=False)
+    elif status == 'staff':
+        users = users.filter(is_staff=True)
+    
+    users = users.order_by('-date_joined')
+    
+    # Calculate statistics
+    total_users = all_users.count()
+    user_stats = {}
+    
+    for user_type in ['Admin', 'Pharmacist', 'Pharm-Tech']:
+        user_stats[user_type] = {
+            'count': all_users.filter(profile__user_type=user_type).count(),
+            'active': all_users.filter(profile__user_type=user_type, is_active=True).count(),
+        }
+    
+    # Group users by category
+    users_by_category = {}
+    for user in users:
+        category_name = user.profile.user_type or 'Unassigned'
+        if category_name not in users_by_category:
+            users_by_category[category_name] = []
+        users_by_category[category_name].append(user)
+    
+    # Initialize form
+    filter_form = UserCategoryFilterForm(initial={
+        'category': filter_category,
+        'status': status,
+    })
     
     context = {
         'users': users,
+        'users_by_category': users_by_category,
+        'filter_form': filter_form,
+        'total_users': total_users,
+        'user_stats': user_stats,
+        'selected_category': filter_category,
+        'selected_status': status,
     }
     return render(request, 'store/admin/users_list.html', context)
 
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
+@user_passes_test(is_admin)
 def admin_user_create(request):
     """Admin view to create a new user"""
     if not request.user.is_superuser:
@@ -1002,7 +1089,7 @@ def admin_user_create(request):
 
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
+@user_passes_test(is_admin)
 def admin_user_edit(request, user_id):
     """Admin view to edit a user"""
     user = get_object_or_404(User, id=user_id)
@@ -1033,7 +1120,7 @@ def admin_user_edit(request, user_id):
 
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
+@user_passes_test(is_admin)
 def admin_user_delete(request, user_id):
     """Admin view to delete a user"""
     if not request.user.is_superuser:
@@ -1058,7 +1145,7 @@ def admin_user_delete(request, user_id):
 
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
+@user_passes_test(is_admin)
 def admin_user_permissions(request, user_id):
     """Admin view to manage a user's permissions and groups"""
     user = get_object_or_404(User, id=user_id)
@@ -1094,7 +1181,7 @@ def admin_user_permissions(request, user_id):
 
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
+@user_passes_test(is_admin)
 def admin_groups_list(request):
     """Admin view to list all groups"""
     from django.contrib.auth.models import Group
@@ -1107,7 +1194,7 @@ def admin_groups_list(request):
 
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
+@user_passes_test(is_admin)
 def admin_group_create(request):
     """Admin view to create a new group"""
     from django.contrib.auth.models import Group
@@ -1133,7 +1220,7 @@ def admin_group_create(request):
 
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
+@user_passes_test(is_admin)
 def admin_group_edit(request, group_id):
     """Admin view to edit a group"""
     from django.contrib.auth.models import Group
@@ -1162,7 +1249,7 @@ def admin_group_edit(request, group_id):
 
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
+@user_passes_test(is_admin)
 def admin_group_delete(request, group_id):
     """Admin view to delete a group"""
     from django.contrib.auth.models import Group
@@ -1181,7 +1268,7 @@ def admin_group_delete(request, group_id):
 
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
+@user_passes_test(is_admin)
 def admin_group_view(request, group_id):
     """Admin view to view a group's members and permissions"""
     from django.contrib.auth.models import Group
@@ -1199,7 +1286,7 @@ def admin_group_view(request, group_id):
 
 
 @login_required
-@user_passes_test(is_superuser_or_staff)
+@user_passes_test(is_admin)
 def admin_dashboard(request):
     """Admin dashboard showing user statistics"""
     from django.contrib.auth.models import Group
@@ -1222,4 +1309,115 @@ def admin_dashboard(request):
     }
     
     return render(request, 'store/admin/dashboard.html', context)
+
+
+# ========== PASSWORD MANAGEMENT VIEWS ==========
+
+@login_required
+@user_passes_test(is_superuser_or_staff)
+def admin_user_change_password(request, user_id):
+    """Admin view to change any user's password"""
+    user = get_object_or_404(User, id=user_id)
+    
+    # Only superusers can change other users' passwords
+    if not request.user.is_superuser:
+        messages.error(request, 'Only superusers can change user passwords.')
+        return redirect('store:admin_users_list')
+    
+    # Prevent changing own password through this form (use profile for that)
+    if user == request.user:
+        messages.info(request, 'Please use your profile page to change your own password.')
+        return redirect('store:profile')
+    
+    if request.method == 'POST':
+        form = AdminPasswordChangeForm(request.POST)
+        if form.is_valid():
+            # Set new password
+            user.set_password(form.cleaned_data['new_password'])
+            
+            # Force logout if requested
+            if form.cleaned_data['force_logout']:
+                # Invalidate all sessions (jwt logout or force re-authentication)
+                # In Django, changing password normally invalidates sessions, but we can reinforce it
+                user.save()  # Save to ensure password is updated
+                messages.warning(request, f'User "{user.username}" logged out of all sessions.')
+            
+            user.save()
+            messages.success(request, f'Password changed successfully for user "{user.username}"')
+            
+            # Log the action
+            messages.info(request, f'New password: {form.cleaned_data["new_password"]} (share securely)')
+            
+            return redirect('store:admin_users_list')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = AdminPasswordChangeForm()
+    
+    return render(request, 'store/admin/user_change_password.html', {
+        'form': form,
+        'user': user,
+        'title': f'Change Password: {user.username}'
+    })
+
+
+@login_required
+def profile_change_password(request):
+    """View for users to change their own password from profile"""
+    if request.method == 'POST':
+        form = UserSelfPasswordChangeForm(request.POST, user=request.user)
+        if form.is_valid():
+            # Change password
+            request.user.set_password(form.cleaned_data['new_password'])
+            request.user.save()
+            
+            messages.success(request, 'Your password has been changed successfully!')
+            messages.info(request, 'Please log in again with your new password.')
+            
+            return redirect('store:logout_user')
+    else:
+        form = UserSelfPasswordChangeForm(user=request.user)
+    
+    return render(request, 'store/profile_change_password.html', {
+        'form': form,
+        'title': 'Change Your Password'
+    })
+
+
+@login_required
+@superuser_or_staff_required
+def admin_profile_password_change(request, user_id):
+    """Admin view to set a new password for a user (no current password needed)"""
+    user = get_object_or_404(User, id=user_id)
+    
+    if not request.user.is_superuser:
+        messages.error(request, 'Only superusers can set user passwords directly.')
+        return redirect('store:admin_users_list')
+    
+    if user == request.user:
+        return redirect('store:profile')
+    
+    if request.method == 'POST':
+        form = AdminPasswordChangeForm(request.POST)
+        if form.is_valid():
+            user.set_password(form.cleaned_data['new_password'])
+            user.save()
+            
+            messages.success(request, f'Password set successfully for "{user.username}"')
+            
+            if form.cleaned_data['force_logout']:
+                messages.info(request, f'User "{user.username}" must login with new password')
+            
+            return redirect('store:admin_user_permissions', user_id=user.id)
+    else:
+        form = AdminPasswordChangeForm()
+    
+    return render(request, 'store/admin/user_change_password.html', {
+        'form': form,
+        'user': user,
+        'title': f'Set New Password: {user.username}',
+        'is_set': True
+    })
 

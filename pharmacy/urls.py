@@ -52,4 +52,11 @@ urlpatterns = [
     path('admin/groups/<int:group_id>/edit/', views.admin_group_edit, name='admin_group_edit'),
     path('admin/groups/<int:group_id>/delete/', views.admin_group_delete, name='admin_group_delete'),
     path('admin/groups/<int:group_id>/', views.admin_group_view, name='admin_group_view'),
+    # Quick category views
+    path('admin/users/category/<str:category>/', views.admin_users_list, name='admin_users_by_category'),
+    
+    # Password management
+    path('admin/users/<int:user_id>/change-password/', views.admin_user_change_password, name='admin_user_change_password'),
+    path('admin/users/<int:user_id>/set-password/', views.admin_profile_password_change, name='admin_set_password'),
+    path('profile/change-password/', views.profile_change_password, name='profile_change_password'),
 ]

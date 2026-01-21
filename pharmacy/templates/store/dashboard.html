@@ -122,6 +122,134 @@
         </div>
     </div>
 
+    {% if user.is_staff or user.is_superuser %}
+    <!-- User Categories Section -->
+    <div class="card border-0 shadow-sm mb-4 rounded-12">
+        <div class="card-header bg-white py-3 border-0">
+            <h5 class="mb-0 fw-bold">
+                <i class="fas fa-users me-2 text-primary"></i>User Categories
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3" id="userCategories">
+                <!-- Admins -->
+                <div class="col-md-4">
+                    <a href="{% url 'store:admin_users_by_category' 'Admin' %}" 
+                       class="card border h-100 text-decoration-none bg-danger bg-opacity-10 border-danger">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-danger mb-1">
+                                        <i class="fas fa-shield-alt me-1"></i>Admin Users
+                                    </h6>
+                                    <h4 class="mb-0 fw-bold" id="adminCount">0</h4>
+                                </div>
+                                <i class="fas fa-arrow-right text-danger opacity-50"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <!-- Pharmacists -->
+                <div class="col-md-4">
+                    <a href="{% url 'store:admin_users_by_category' 'Pharmacist' %}" 
+                       class="card border h-100 text-decoration-none bg-primary bg-opacity-10 border-primary">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-primary mb-1">
+                                        <i class="fas fa-user-md me-1"></i>Pharmacists
+                                    </h6>
+                                    <h4 class="mb-0 fw-bold" id="pharmacistCount">0</h4>
+                                </div>
+                                <i class="fas fa-arrow-right text-primary opacity-50"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <!-- Pharmacy Techs -->
+                <div class="col-md-4">
+                    <a href="{% url 'store:admin_users_by_category' 'Pharm-Tech' %}" 
+                       class="card border h-100 text-decoration-none bg-secondary bg-opacity-10 border-secondary">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-secondary mb-1">
+                                        <i class="fas fa-user-nurse me-1"></i>Pharm-Techs
+                                    </h6>
+                                    <h4 class="mb-0 fw-bold" id="techCount">0</h4>
+                                </div>
+                                <i class="fas fa-arrow-right text-secondary opacity-50"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card stat-card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Users</h6>
+                            <h3 class="mb-0 fw-bold" id="totalUserCount">0</h3>
+                        </div>
+                        <i class="fas fa-users text-muted fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-1">Active Staff</h6>
+                            <h3 class="mb-0 fw-bold" id="activeStaffCount">0</h3>
+                        </div>
+                        <i class="fas fa-user-check text-success fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Groups</h6>
+                            <h3 class="mb-0 fw-bold" id="groupCount">0</h3>
+                        </div>
+                        <i class="fas fa-layer-group text-warning fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Stats Populator -->
+    {% if user_stats %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Populate user category counts
+        const stats = {{ user_stats|safe }};
+        
+        if (stats.admin_users !== undefined) {
+            document.getElementById('adminCount').textContent = stats.admin_users;
+            document.getElementById('pharmacistCount').textContent = stats.pharmacist_users;
+            document.getElementById('techCount').textContent = stats.tech_users;
+            document.getElementById('totalUserCount').textContent = stats.total_users;
+            document.getElementById('activeStaffCount').textContent = stats.active_staff;
+            document.getElementById('groupCount').textContent = stats.total_groups;
+        }
+    });
+    </script>
+    {% endif %}
+
     <!-- Main Content Row -->
     <div class="row g-4">
         <!-- Quick Actions -->

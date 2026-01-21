@@ -183,6 +183,90 @@ class CustomPasswordChangeForm(PasswordChangeForm):
         for field in self.fields.values():
             field.widget.attrs['class'] = 'form-control'
 
+
+class AdminPasswordChangeForm(forms.Form):
+    """Form for admin to change any user's password"""
+    new_password = forms.CharField(
+        max_length=128,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        label='New Password'
+    )
+    
+    confirm_password = forms.CharField(
+        max_length=128,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        label='Confirm Password'
+    )
+    
+    force_logout = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label='Force user logout after password change',
+        help_text='Check this to ensure the new password is required on next login'
+    )
+
+    def clean_new_password(self):
+        password = self.cleaned_data.get('new_password')
+        # Add password validation rules (optional)
+        if len(password) < 6:
+            raise forms.ValidationError("Password must be at least 6 characters long.")
+        return password
+
+    def clean(self):
+        cleaned_data = super().clean()
+        new_password = cleaned_data.get('new_password')
+        confirm_password = cleaned_data.get('confirm_password')
+
+        if new_password and confirm_password:
+            if new_password != confirm_password:
+                raise forms.ValidationError("The two password fields must match.")
+
+        return cleaned_data
+
+
+class UserSelfPasswordChangeForm(forms.Form):
+    """Form for users to change their own password"""
+    current_password = forms.CharField(
+        max_length=128,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        label='Current Password'
+    )
+    
+    new_password = forms.CharField(
+        max_length=128,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        label='New Password'
+    )
+    
+    confirm_password = forms.CharField(
+        max_length=128,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        label='Confirm New Password'
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_current_password(self):
+        password = self.cleaned_data.get('current_password')
+        if self.user and password:
+            if not self.user.check_password(password):
+                raise forms.ValidationError("Current password is incorrect.")
+        return password
+
+    def clean(self):
+        cleaned_data = super().clean()
+        new_password = cleaned_data.get('new_password')
+        confirm_password = cleaned_data.get('confirm_password')
+
+        if new_password and confirm_password:
+            if new_password != confirm_password:
+                raise forms.ValidationError("The two password fields must match.")
+
+        return cleaned_data
+
 class UserPermissionForm(forms.ModelForm):
     """Form for managing user permissions and groups"""
     groups = forms.ModelMultipleChoiceField(
@@ -220,7 +304,7 @@ class UserManageForm(forms.ModelForm):
         choices=USER_TYPE,
         required=False,
         widget=forms.Select(attrs={'class': 'form-control'}),
-        label='Role'
+        label='User Category / Role'
     )
     
     full_name = forms.CharField(
@@ -229,14 +313,23 @@ class UserManageForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'class': 'form-control'}),
         label='Full Name'
     )
+    
+    email = forms.EmailField(
+        max_length=254,
+        required=False,
+        widget=forms.EmailInput(attrs={'class': 'form-control'}),
+        label='Email Address'
+    )
 
     class Meta:
         model = User
-        fields = ['username', 'mobile', 'password', 'is_active', 'is_staff', 'is_superuser']
+        fields = ['username', 'mobile', 'password', 'email', 'is_active', 'is_staff', 'is_superuser', 'first_name', 'last_name']
         widgets = {
             'password': forms.PasswordInput(attrs={'class': 'form-control'}),
             'username': forms.TextInput(attrs={'class': 'form-control'}),
             'mobile': forms.TextInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_staff': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_superuser': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -254,6 +347,10 @@ class UserManageForm(forms.ModelForm):
                 pass
             # Don't require password for editing
             self.fields['password'].required = False
+        else:
+            # New user - set defaults
+            self.fields['password'].label = 'Password *'
+            self.fields['password'].help_text = 'Required for new users'
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -327,3 +424,37 @@ class BulkPermissionActionForm(forms.Form):
         self.fields['permission'].queryset = Permission.objects.filter(
             content_type__app_label__in=['pharmacy', 'auth', 'admin']
         ).order_by('content_type__model', 'codename')
+
+
+class UserCategoryFilterForm(forms.Form):
+    """Form for filtering users by category (user_type)"""
+    category = forms.ChoiceField(
+        choices=USER_TYPE,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Filter by Category'
+    )
+    
+    status = forms.ChoiceField(
+        choices=[
+            ('all', 'All Users'),
+            ('active', 'Active Only'),
+            ('inactive', 'Inactive Only'),
+            ('staff', 'Staff Only'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Filter by Status'
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add "All" option to category field
+        self.fields['category'].choices = [('', 'All Categories')] + list(USER_TYPE)
+        
+        # Set default values
+        if not self.initial.get('category'):
+            self.initial['category'] = ''
+        if not self.initial.get('status'):
+            self.initial['status'] = 'all'
+

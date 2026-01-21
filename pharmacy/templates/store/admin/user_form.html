@@ -19,6 +19,11 @@
             <a href="{% url 'store:admin_users_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Cancel
             </a>
+            {% if action == 'edit' %}
+            <a href="{% url 'store:admin_user_change_password' user.id %}" class="btn btn-warning">
+                <i class="fas fa-key me-2"></i>Change Password
+            </a>
+            {% endif %}
         </div>
     </div>
 
@@ -68,6 +73,21 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">
+                                Email Address
+                            </label>
+                            {{ form.email|add_class:"form-control" }}
+                            {% if form.email.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted">Optional - for notifications and communication</small>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="{{ form.full_name.id_for_label }}" class="form-label">
                                 Full Name
                             </label>
@@ -83,7 +103,7 @@
 
                         <div class="mb-3">
                             <label for="{{ form.user_type.id_for_label }}" class="form-label">
-                                Role
+                                User Category / Role
                             </label>
                             {{ form.user_type|add_class:"form-control" }}
                             {% if form.user_type.errors %}
@@ -93,6 +113,25 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Categorizes users by their role in the pharmacy
+                            </small>
+                        </div>
+
+                        <!-- Additional Personal Info -->
+                        <div class="mb-3">
+                            <label class="form-label">Personal Information</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    {{ form.first_name|add_class:"form-control" }}
+                                    <small class="text-muted">First Name</small>
+                                </div>
+                                <div class="col-6">
+                                    {{ form.last_name|add_class:"form-control" }}
+                                    <small class="text-muted">Last Name</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

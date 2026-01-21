@@ -3,6 +3,14 @@
 
 {% block content %}
 <div class="container mt-5">
+    <!-- Deprecation Notice -->
+    <div class="alert alert-info">
+        <strong><i class="fas fa-info-circle me-2"></i>Note:</strong>
+        This page is now accessible via the 
+        <a href="{% url 'store:admin_user_create' %}" class="alert-link">Admin Interface</a>
+        (Better UX with enhanced fields).
+    </div>
+
     <div class="row justify-content-center">
         <div class="col-md-6">
             <div class="card shadow">
