@@ -21,7 +21,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-for-dev-only'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,testserver').split(',')
 
 
 
@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'pharmacy',
     'django.contrib.humanize',
     'widget_tweaks',
+    'django_htmx',
 ]
 
 MIDDLEWARE = [
@@ -47,6 +48,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_htmx.middleware.HtmxMiddleware',
     'pharmacy.middleware.SessionTimeoutMiddleware',
     'pharmacy.session_cart.SessionCartMiddleware',
 ]

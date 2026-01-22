@@ -1,5 +1,13 @@
 {% load humanize %}
-<div class="row">
+<template hx-swap-oob="#cart-count">
+    {% if user.is_authenticated and user.pending_cart_count > 0 %}
+        {{ user.pending_cart_count }}
+    {% elif not user.is_authenticated and request.cart_count > 0 %}
+        {{ request.cart_count }}
+    {% endif %}
+</template>
+
+<div class="row" hx-on:htmx:afterRequest="htmx.process(this)">
     {% if query %}
         <div class="col-12 mb-3">
             <h4>Search Results for "{{ query }}"</h4>
@@ -31,7 +39,11 @@
                         <strong>Price:</strong> ₦{{ drug.price|floatformat:2|intcomma }}<br>
                         <strong>Stock:</strong> {{ drug.stock }}
                     </p>
-                    <form method="POST" action="{% url 'store:add_to_cart' drug_type='lpacemaker' pk=drug.id %}">
+                    <form hx-post="{% url 'store:add_to_cart' drug_type='lpacemaker' pk=drug.id %}"
+                          hx-target="#success-message-{{ drug.id }}"
+                          hx-swap="outerHTML"
+                          hx-indicator="#add-cart-spinner-{{ drug.id }}"
+                          hx-on::afterRequest="this.reset()">
                         {% csrf_token %}
                         <div class="input-group">
                             <input type="number"
@@ -42,11 +54,15 @@
                                    class="form-control form-control-sm"
                                    required>
                             <button type="submit"
-                                    class="btn btn-primary btn-sm">
+                                    class="btn btn-primary btn-sm position-relative">
                                 Add to Cart
+                                <span id="add-cart-spinner-{{ drug.id }}" class="htmx-indicator spinner-border spinner-border-sm ms-2" role="status">
+                                    <span class="visually-hidden">Adding...</span>
+                                </span>
                             </button>
                         </div>
                     </form>
+                    <div id="success-message-{{ drug.id }}"></div>
                 </div>
             </div>
         </div>
@@ -66,7 +82,11 @@
                         <strong>Price:</strong> ₦{{ drug.price|floatformat:2|intcomma }}<br>
                         <strong>Stock:</strong> {{ drug.stock }}
                     </p>
-                    <form method="POST" action="{% url 'store:add_to_cart' drug_type='ncap' pk=drug.id %}">
+                    <form hx-post="{% url 'store:add_to_cart' drug_type='ncap' pk=drug.id %}"
+                          hx-target="#success-message-{{ drug.id }}"
+                          hx-swap="outerHTML"
+                          hx-indicator="#add-cart-spinner-{{ drug.id }}"
+                          hx-on::afterRequest="this.reset()">
                         {% csrf_token %}
                         <div class="input-group">
                             <input type="number"
@@ -77,11 +97,15 @@
                                    class="form-control form-control-sm"
                                    required>
                             <button type="submit"
-                                    class="btn btn-primary btn-sm">
+                                    class="btn btn-primary btn-sm position-relative">
                                 Add to Cart
+                                <span id="add-cart-spinner-{{ drug.id }}" class="htmx-indicator spinner-border spinner-border-sm ms-2" role="status">
+                                    <span class="visually-hidden">Adding...</span>
+                                </span>
                             </button>
                         </div>
                     </form>
+                    <div id="success-message-{{ drug.id }}"></div>
                 </div>
             </div>
         </div>
@@ -101,7 +125,11 @@
                         <strong>Price:</strong> ₦{{ drug.price|floatformat:2|intcomma }}<br>
                         <strong>Stock:</strong> {{ drug.stock }}
                     </p>
-                    <form method="POST" action="{% url 'store:add_to_cart' drug_type='oncology' pk=drug.id %}">
+                    <form hx-post="{% url 'store:add_to_cart' drug_type='oncology' pk=drug.id %}"
+                          hx-target="#success-message-{{ drug.id }}"
+                          hx-swap="outerHTML"
+                          hx-indicator="#add-cart-spinner-{{ drug.id }}"
+                          hx-on::afterRequest="this.reset()">
                         {% csrf_token %}
                         <div class="input-group">
                             <input type="number"
@@ -112,11 +140,15 @@
                                    class="form-control form-control-sm"
                                    required>
                             <button type="submit"
-                                    class="btn btn-primary btn-sm">
+                                    class="btn btn-primary btn-sm position-relative">
                                 Add to Cart
+                                <span id="add-cart-spinner-{{ drug.id }}" class="htmx-indicator spinner-border spinner-border-sm ms-2" role="status">
+                                    <span class="visually-hidden">Adding...</span>
+                                </span>
                             </button>
                         </div>
                     </form>
+                    <div id="success-message-{{ drug.id }}"></div>
                 </div>
             </div>
         </div>

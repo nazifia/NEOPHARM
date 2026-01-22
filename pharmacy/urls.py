@@ -26,8 +26,8 @@ urlpatterns = [
 
     path('quick-dispense/<str:drug_type>/<int:pk>/', views.quick_dispense, name='quick_dispense'),
     path('add-to-cart/<str:drug_type>/<int:pk>/', views.add_to_cart, name='add_to_cart'),
-    path('update-cart/<int:pk>/', views.update_cart, name='update_cart'),
-    path('remove-from-cart/<int:pk>/', views.remove_from_cart, name='remove_from_cart'),
+    path('update-cart/<str:pk>/', views.update_cart, name='update_cart'),
+    path('remove-from-cart/<str:pk>/', views.remove_from_cart, name='remove_from_cart'),
     path('search/', views.search_item, name='search_items'),
     path('register/', views.register_user, name='register'),
     path('profile/', views.profile, name='profile'),
@@ -65,4 +65,7 @@ urlpatterns = [
     path('admin/model-browser/select/', views.select_model_category, name='select_model_category'),
     path('admin/model-browser/<str:category>/', views.admin_model_list, name='admin_model_list'),
     path('admin/model-browser/<str:category>/<int:drug_id>/edit/', views.admin_edit_model_name, name='admin_edit_model_name'),
+    
+    # API endpoints
+    path('api/extend-session/', views.extend_session, name='extend_session'),
 ]

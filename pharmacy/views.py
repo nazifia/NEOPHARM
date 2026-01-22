@@ -108,9 +108,8 @@ def logout_user(request):
     messages.success(request, 'You have been logged out successfully.')
     return redirect('store:index')
 
+@login_required
 def dashboard(request):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     # Count items in each category
     lpacemaker_count = LpacemakerDrugs.objects.count()
@@ -155,9 +154,8 @@ def dashboard(request):
     
     return render(request, 'store/dashboard.html', context)
 
+@login_required
 def store(request):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     lpacemaker = LpacemakerDrugs.objects.all().order_by('name')
     ncap = NcapDrugs.objects.all().order_by('name')
@@ -193,9 +191,8 @@ def store(request):
     
     return render(request, 'store/store.html', context)
 
+@login_required
 def add_item(request):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     if request.method == 'POST':
         category = request.POST.get('store_type')  # Fixed field name to match template
@@ -255,9 +252,8 @@ def add_item(request):
         'markup_choices': [('5', '5%'), ('10', '10%'), ('15', '15%'), ('20', '20%'), ('25', '25%'), ('30', '30%'), ('35', '35%'), ('40', '40%'), ('45', '45%'), ('50', '50%'), ('55', '55%'), ('60', '60%'), ('65', '65%'), ('70', '70%'), ('75', '75%'), ('80', '80%'), ('85', '85%'), ('90', '90%'), ('100', '100%')]
     })
 
+@login_required
 def edit_item(request, drug_type, pk):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     if drug_type == 'lpacemaker':
         item = get_object_or_404(LpacemakerDrugs, pk=pk)
@@ -289,9 +285,8 @@ def edit_item(request, drug_type, pk):
     }
     return render(request, 'store/edit_item.html', context)
 
+@login_required
 def delete_item(request, drug_type, pk):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     if drug_type == 'lpacemaker':
         item = get_object_or_404(LpacemakerDrugs, pk=pk)
@@ -310,36 +305,8 @@ def delete_item(request, drug_type, pk):
     
     return render(request, 'store/delete_item_confirm.html', {'item': item, 'drug_type': drug_type})
 
+@login_required
 def add_to_cart(request, drug_type, pk):
-    from pharmacy.session_cart import SessionCart
-    
-    # Handle unauthenticated users with session cart
-    if not request.user.is_authenticated:
-        if request.method == 'POST':
-            quantity = int(request.POST.get('quantity', 1))
-        else:
-            quantity = int(request.GET.get('quantity', 1))
-        
-        # Add to session cart
-        success, message = SessionCart.add_to_session_cart(request, drug_type, pk, quantity)
-        
-        if request.method == 'POST':
-            if success:
-                messages.success(request, message)
-                return redirect('store:dispense')
-            else:
-                messages.error(request, message)
-                return redirect('store:dispense')
-        else:
-            if success:
-                return JsonResponse({
-                    'success': True,
-                    'message': message,
-                    'cart_count': SessionCart.get_cart_count_from_session(request)
-                })
-            else:
-                return JsonResponse({'error': message}, status=400)
-    
     if request.method == 'POST':
         quantity = int(request.POST.get('quantity', 1))
     else:
@@ -347,64 +314,58 @@ def add_to_cart(request, drug_type, pk):
     
     success, message, status = DrugService.add_to_cart(request.user, drug_type, pk, quantity)
     
+    # Check if this is an HTMX request
+    is_htmx = request.headers.get('HX-Request') == 'true'
+    
     if success:
+        cart_count = Cart.objects.filter(user=request.user, form__isnull=True).count()
+        
         if request.method == 'POST':
-            messages.success(request, message)
-            return redirect('store:dispense')
+            if is_htmx:
+                # Success message snippet with cart count update
+                return HttpResponse(f'''
+                <div class="alert alert-success mt-2" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>{message}
+                </div>
+                <template hx-swap-oob="#cart-count">
+                    {cart_count}
+                </template>
+                ''')
+            else:
+                messages.success(request, message)
+                return redirect('store:dispense')
         else:
             return JsonResponse({
                 'success': True,
                 'message': message,
-                'cart_count': Cart.objects.filter(user=request.user, form__isnull=True).count()
+                'cart_count': cart_count
             })
     else:
         if request.method == 'POST':
-            messages.error(request, message)
-            return redirect('store:dispense')
+            if is_htmx:
+                return HttpResponse(f'''
+                <div class="alert alert-danger mt-2" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i>{message}
+                </div>
+                ''')
+            else:
+                messages.error(request, message)
+                return redirect('store:dispense')
         else:
             return JsonResponse({'error': message}, status=status)
 
+@login_required
 def cart(request):
-    from pharmacy.session_cart import SessionCart
     from decimal import Decimal
     
-    # Handle session cart for unauthenticated users
-    if not request.user.is_authenticated:
-        session_cart = SessionCart.get_session_cart(request)
-        
-        # Convert session cart to display format
-        class SessionCartItem:
-            def __init__(self, session_data):
-                self.quantity = session_data['quantity']
-                self.subtotal = Decimal(str(session_data['price'])) * self.quantity
-                self.price = Decimal(str(session_data['price']))
-                self.unit = session_data.get('unit', 'N/A')
-                self.cart_id = f"{session_data['drug_type']}_{session_data['drug_id']}"
-                self.id = f"{session_data['drug_type']}_{session_data['drug_id']}"
-                
-                # Mock drug object
-                class MockDrug:
-                    def __init__(self, data):
-                        self.name = data['name']
-                        self.brand = data.get('brand')
-                        self.pk = data['drug_id']
-                
-                self._mock_drug = MockDrug(session_data)
-            
-            def get_item(self):
-                return self._mock_drug
-        
-        cart_items = [SessionCartItem(item) for item in session_cart.values()]
-        total = SessionCart.calculate_session_cart_total(request)
-    else:
-        # Get all cart items that are not yet part of a form (pending cart)
-        cart_items = Cart.objects.filter(
-            user=request.user, 
-            form__isnull=True
-        ).order_by('-created_at')
-        
-        # Calculate total
-        total = sum(item.subtotal for item in cart_items)
+    # Get all cart items that are not yet part of a form (pending cart)
+    cart_items = Cart.objects.filter(
+        user=request.user, 
+        form__isnull=True
+    ).order_by('-created_at')
+    
+    # Calculate total
+    total = sum(item.subtotal for item in cart_items)
     
     context = {
         'cart_items': cart_items,
@@ -413,35 +374,9 @@ def cart(request):
     
     return render(request, 'store/cart.html', context)
 
+@login_required
 def update_cart(request, pk):
     from pharmacy.session_cart import SessionCart
-    
-    # Handle session cart for unauthenticated users
-    if not request.user.is_authenticated:
-        # pk here is the session cart_id (format: drug_type_drug_id)
-        if request.method == 'POST':
-            quantity = int(request.POST.get('quantity', 1))
-        else:
-            quantity = int(request.GET.get('quantity', 1))
-        
-        session_cart = SessionCart.get_session_cart(request)
-        
-        if quantity <= 0:
-            # Remove item from session cart
-            SessionCart.remove_from_session_cart(request, pk)
-            messages.success(request, 'Item removed from cart')
-            return redirect('store:cart')
-        
-        if pk in session_cart:
-            # Update quantity
-            session_cart[pk]['quantity'] = quantity
-            request.session[SessionCart.SESSION_KEY] = session_cart
-            SessionCart._update_cart_count(request)
-            messages.success(request, 'Cart updated successfully')
-            return redirect('store:cart')
-        else:
-            messages.error(request, 'Cart item not found')
-            return redirect('store:cart')
     
     # Handle database cart for authenticated users
     try:
@@ -497,20 +432,9 @@ def update_cart(request, pk):
         messages.error(request, 'Cart item not found')
         return redirect('store:cart')
 
+@login_required
 def remove_from_cart(request, pk):
     from pharmacy.session_cart import SessionCart
-    
-    # Handle session cart for unauthenticated users
-    if not request.user.is_authenticated:
-        # pk here is the session cart_id (format: drug_type_drug_id)
-        success, message = SessionCart.remove_from_session_cart(request, pk)
-        
-        if success:
-            messages.success(request, message)
-        else:
-            messages.error(request, message)
-        
-        return redirect('store:cart')
     
     # Handle database cart for authenticated users
     try:
@@ -530,15 +454,8 @@ def remove_from_cart(request, pk):
         messages.error(request, 'Cart item not found')
         return redirect('store:cart')
 
+@login_required
 def clear_cart(request):
-    from pharmacy.session_cart import SessionCart
-    
-    # Handle session cart for unauthenticated users
-    if not request.user.is_authenticated:
-        success, message = SessionCart.clear_session_cart(request)
-        messages.success(request, message)
-        return redirect('store:cart')
-    
     # Handle database cart for authenticated users
     cart_items = Cart.objects.filter(user=request.user, form__isnull=True)
     
@@ -553,47 +470,15 @@ def clear_cart(request):
     messages.success(request, 'Cart cleared successfully!')
     return redirect('store:cart')
 
+@login_required
 def dispense(request):
-    from pharmacy.session_cart import SessionCart
     from decimal import Decimal
     
     form = dispenseForm()
     
-    # Get cart items based on authentication status
-    if request.user.is_authenticated:
-        cart_items = Cart.objects.filter(user=request.user, form__isnull=True)
-        total = sum(item.subtotal for item in cart_items)
-        cart_display_items = cart_items
-    else:
-        # Get session cart items for display
-        session_cart = SessionCart.get_session_cart(request)
-        total = SessionCart.calculate_session_cart_total(request)
-        
-        # Convert session cart to a list that templates expect
-        class SessionCartItem:
-            def __init__(self, session_data):
-                self.quantity = session_data['quantity']
-                self.subtotal = Decimal(str(session_data['price'])) * self.quantity
-                self.price = Decimal(str(session_data['price']))
-                self.unit = session_data.get('unit', 'N/A')
-                self.cart_id = f"{session_data['drug_type']}_{session_data['drug_id']}"
-                
-                # Mock drug object
-                class MockDrug:
-                    def __init__(self, data):
-                        self.name = data['name']
-                        self.brand = data.get('brand')
-                        self.pk = data['drug_id']
-                
-                self._mock_drug = MockDrug(session_data)
-            
-            def get_item(self):
-                return self._mock_drug
-        
-        cart_display_items = [SessionCartItem(item) for item in session_cart.values()]
-    
-    # Make cart_items available to template (alias cart_display_items)
-    cart_items = cart_display_items
+    # Get cart items
+    cart_items = Cart.objects.filter(user=request.user, form__isnull=True)
+    total = sum(item.subtotal for item in cart_items)
     
     # Handle search functionality
     query = request.GET.get('q', '').strip()
@@ -746,18 +631,16 @@ def dispense(request):
     
     return render(request, 'store/dispense.html', context)
 
+@login_required
 def receipt(request):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     # Get all forms (receipts)
     forms = Form.objects.all().order_by('-date')
     
     return render(request, 'store/receipt.html', {'forms': forms})
 
+@login_required
 def receipt_detail(request, receipt_id):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     form = get_object_or_404(Form, form_id=receipt_id)
     form_items = FormItem.objects.filter(form=form)
@@ -769,9 +652,8 @@ def receipt_detail(request, receipt_id):
     
     return render(request, 'store/receipt_detail.html', context)
 
+@login_required
 def search_item(request):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     query = request.GET.get('q', '').strip()
     category = request.GET.get('category', 'all')
@@ -821,17 +703,50 @@ def search_item(request):
                     'stock': drug.stock,
                 })
     
+    # Check if this is an HTMX request
+    is_htmx = request.headers.get('HX-Request') == 'true'
+    
+    # Convert results to the format expected by dispense_results template
+    formatted_results = {
+        'lpacemaker_items': [],
+        'ncap_items': [],
+        'oncology_items': []
+    }
+    
+    for item in results:
+        drug = {
+            'id': item['drug'].id,
+            'name': item['name'],
+            'brand': item['brand'],
+            'price': item['price'],
+            'stock': item['stock'],
+            'unit': item['drug'].unit if hasattr(item['drug'], 'unit') else 'N/A',
+        }
+        
+        if item['type'] == 'lpacemaker':
+            formatted_results['lpacemaker_items'].append(drug)
+        elif item['type'] == 'ncap':
+            formatted_results['ncap_items'].append(drug)
+        elif item['type'] == 'oncology':
+            formatted_results['oncology_items'].append(drug)
+    
+    if is_htmx:
+        # Return only the search results partial for HTMX
+        return render(request, 'partials/dispense_results.html', {
+            'results': formatted_results,
+            'query': query,
+            'category': category
+        })
+    
     return render(request, 'store/dispense.html', {
         'form': dispenseForm(),
-        'results': results,
+        'results': formatted_results,
         'query': query,
         'category': category
     })
 
+@login_required
 def quick_dispense(request, drug_type, pk):
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Not authenticated'}, status=401)
-    
     # Reuse add_to_cart logic via service
     success, message, status = DrugService.add_to_cart(request.user, drug_type, pk, quantity=1)
     
@@ -844,15 +759,21 @@ def quick_dispense(request, drug_type, pk):
     else:
         return JsonResponse({'error': message}, status=status)
 
+@login_required
 def search_items(request):
-
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Not authenticated'}, status=401)
     
     query = request.GET.get('q', '').strip()
     category = request.GET.get('category', 'all')
     
-    results = []
+    # Check if this is an HTMX request
+    is_htmx = request.headers.get('HX-Request') == 'true'
+    
+    # Prepare results in the format expected by the dispense_results template
+    results = {
+        'lpacemaker_items': [],
+        'ncap_items': [],
+        'oncology_items': []
+    }
     
     if query:
         if category in ['all', 'lpacemaker']:
@@ -860,14 +781,13 @@ def search_items(request):
                 Q(name__icontains=query) | Q(brand__icontains=query)
             )[:10]
             for drug in lpacemaker_results:
-                results.append({
+                results['lpacemaker_items'].append({
                     'id': drug.id,
-                    'type': 'lpacemaker',
                     'name': drug.name,
-                    'brand': drug.brand or '',
-                    'price': float(drug.price),
+                    'brand': drug.brand,
+                    'price': drug.price,
                     'stock': drug.stock,
-                    'unit': drug.unit
+                    'unit': drug.unit,
                 })
         
         if category in ['all', 'ncap']:
@@ -875,14 +795,13 @@ def search_items(request):
                 Q(name__icontains=query) | Q(brand__icontains=query)
             )[:10]
             for drug in ncap_results:
-                results.append({
+                results['ncap_items'].append({
                     'id': drug.id,
-                    'type': 'ncap',
                     'name': drug.name,
-                    'brand': drug.brand or '',
-                    'price': float(drug.price),
+                    'brand': drug.brand,
+                    'price': drug.price,
                     'stock': drug.stock,
-                    'unit': drug.unit
+                    'unit': drug.unit,
                 })
         
         if category in ['all', 'oncology']:
@@ -890,21 +809,28 @@ def search_items(request):
                 Q(name__icontains=query) | Q(brand__icontains=query)
             )[:10]
             for drug in oncology_results:
-                results.append({
+                results['oncology_items'].append({
                     'id': drug.id,
-                    'type': 'oncology',
                     'name': drug.name,
-                    'brand': drug.brand or '',
-                    'price': float(drug.price),
+                    'brand': drug.brand,
+                    'price': drug.price,
                     'stock': drug.stock,
-                    'unit': drug.unit
+                    'unit': drug.unit,
                 })
     
+    if is_htmx:
+        # For HTMX requests, return HTML partial
+        return render(request, 'partials/dispense_results.html', {
+            'results': results,
+            'query': query,
+            'category': category
+        })
+    
+    # Original behavior for non-HTMX requests
     return JsonResponse({'results': results})
 
+@login_required
 def get_category_drugs(request):
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Not authenticated'}, status=401)
     
     category = request.GET.get('category')
     query = request.GET.get('q', '').strip()
@@ -958,9 +884,8 @@ def get_category_drugs(request):
     
     return JsonResponse({'drugs': drugs})
 
+@login_required
 def profile(request):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     # Get user's profile
     profile = request.user.profile
@@ -985,9 +910,8 @@ def profile(request):
     
     return render(request, 'store/profile.html', context)
 
+@login_required
 def form_list(request):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     # Import necessary function for aggregation
     from django.db.models import Sum
@@ -1047,9 +971,8 @@ def form_list(request):
     }
     return render(request, 'store/forms.html', context)
 
+@login_required
 def view_form(request, form_id):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     form = get_object_or_404(Form, form_id=form_id)
     items = FormItem.objects.filter(form=form)
@@ -1070,9 +993,8 @@ def view_form(request, form_id):
     
     return render(request, 'store/form_detail.html', context)
 
+@login_required
 def edit_form(request, form_id):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     form_obj = get_object_or_404(Form, form_id=form_id)
     
@@ -1087,9 +1009,8 @@ def edit_form(request, form_id):
     
     return render(request, 'store/edit_form.html', {'form': form, 'form_obj': form_obj})
 
+@login_required
 def add_form_item(request, form_id):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     form_obj = get_object_or_404(Form, form_id=form_id)
     
@@ -1111,9 +1032,8 @@ def add_form_item(request, form_id):
     
     return render(request, 'store/edit_form_item.html', {'form': form, 'form_obj': form_obj, 'action': 'Add'})
 
+@login_required
 def edit_form_item(request, form_id, item_id):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     form_obj = get_object_or_404(Form, form_id=form_id)
     form_item = get_object_or_404(FormItem, id=item_id)
@@ -1134,9 +1054,8 @@ def edit_form_item(request, form_id, item_id):
     
     return render(request, 'store/edit_form_item.html', {'form': form, 'form_obj': form_obj, 'action': 'Edit'})
 
+@login_required
 def remove_form_item(request, form_id, item_id):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     form_obj = get_object_or_404(Form, form_id=form_id)
     form_item = get_object_or_404(FormItem, id=item_id)
@@ -1150,9 +1069,8 @@ def remove_form_item(request, form_id, item_id):
     messages.success(request, 'Form item removed successfully!')
     return redirect('store:view_form', form_id=form_id)
 
+@login_required
 def return_item(request, drug_type, pk):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
     
     try:
         drug = DrugService.get_drug(drug_type, pk)
@@ -1745,4 +1663,21 @@ def admin_edit_model_name(request, category, drug_id):
     }
     
     return render(request, 'store/admin/model_edit.html', context)
+
+
+@login_required
+@csrf_exempt
+def extend_session(request):
+    """API endpoint to extend authenticated user session"""
+    if request.method == 'POST' and request.user.is_authenticated:
+        # Update session timestamp
+        request.session['last_activity'] = timezone.now().isoformat()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Session extended successfully',
+            'new_expiry': (timezone.now() + timezone.timedelta(minutes=30)).isoformat()
+        })
+    
+    return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=401)
 

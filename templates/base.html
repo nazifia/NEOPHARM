@@ -3,11 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEOPHARM</title>
+    <meta name="description" content="NEOPHARM Pharmacy Management System - Efficient inventory and prescription management">
+    <meta name="theme-color" content="#2563eb">
+    <title>{% block title %}NEOPHARM Pharmacy{% endblock %}</title>
+    
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Admin Badge Sticker for branding -->
     <style>
@@ -17,13 +22,286 @@
             --brand-accent: #f59e0b;
             --brand-success: #10b981;
             --brand-danger: #ef4444;
+            --font-primary: 'Inter', sans-serif;
+        }
+
+        * {
+            font-family: var(--font-primary);
+        }
+
+        /* Performance & Smooth Animation */
+        body {
+            overflow-x: hidden;
+        }
+
+        .page-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .page-loader.active {
+            display: flex;
+        }
+
+        .loader-swirl {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--brand-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* HTMX indicator styles WITH performance improvements */
+        .htmx-indicator {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        .htmx-loading .htmx-indicator {
+            display: inline-block;
+            opacity: 1;
+        }
+
+        /* Add htmx-loading class when requests are in progress */
+        .htmx-loading {
+            opacity: 0.7;
+            cursor: wait !important;
+        }
+
+        /* Smooth transitions for HTMX swaps - IMPROVED */
+        .htmx-swapping {
+            opacity: 0.3;
+            transform: scale(0.98);
+            transition: all 0.15s ease-out;
+        }
+
+        /* HTMX in-flight indicator in navbar */
+        .htmx-loading-global {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--brand-accent);
+            transform: scaleX(0);
+            transform-origin: left;
+            animation: htmx-loading-progress 1s ease-in-out infinite;
+            z-index: 9998;
+            display: none;
+        }
+
+        .htmx-request-global .htmx-loading-global {
+            display: block;
+            animation: htmx-loading-progress 0.5s ease-in-out infinite;
+        }
+
+        @keyframes htmx-loading-progress {
+            0% { transform: scaleX(0); }
+            50% { transform: scaleX(0.5); }
+            100% { transform: scaleX(1); }
+        }
+
+        /* Custom htmx request styling */
+        [hx-trigger*="click"], [hx-on*="click"] {
+            cursor: pointer;
+        }
+
+        /* Success/error message animations with better accessibility */
+        .alert {
+            animation: slideIn 0.3s ease-out;
+            position: relative;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateZ(0) translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateZ(0) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Enhancement for navbar */
+        .navbar {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        /* Enhanced card hover effects */
+        .card-hover {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card-hover:hover {
+            transform: translateY(-2px) scale(1.005);
+            box-shadow: 0 12px 20px rgba(37, 99, 235, 0.15) !important;
+        }
+
+        /* Keyboard shortcut helper */
+        .kbd-shortcut {
+            background: #f4f4f4;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            box-shadow: 0 1px 0 #ccc;
+            font-family: monospace;
+        }
+
+        /* Focus visible for accessibility */
+        :focus-visible {
+            outline: 3px solid var(--brand-accent) !important;
+            outline-offset: 2px;
+        }
+
+        /* Skip link for accessibility */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: var(--brand-primary);
+            color: white;
+            padding: 8px;
+            z-index: 10001;
+        }
+
+        .skip-link:focus {
+            top: 0;
+        }
+
+        /* Session timeout warning indicator */
+        .session-warning {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--brand-danger);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            display: none;
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        .session-warning.active {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        /* Theme variables for potential dark mode */
+        [data-theme="dark"] {
+            --bs-body-bg: #1a1a1a;
+            --bs-body-color: #e5e5e5;
+            --bs-white: #2d2d2d;
+            --bs-soft: #333;
+        }
+
+        .theme-switch-btn {
+            background: var(--brand-primary);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .theme-switch-btn:hover {
+            background: var(--brand-secondary);
+            transform: scale(1.05);
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+
+        /* Responsive enhancements */
+        @media (max-width: 768px) {
+            .navbar-brand span {
+                font-size: 1.1rem !important;
+            }
+            
+            .nav-link {
+                padding: 0.5rem 0.75rem !important;
+            }
+            
+            .page-loader {
+                padding: 20px;
+            }
+        }
+
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Badge animation */
+        .badge-pulse {
+            animation: badgePulse 2s infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
         }
     </style>
     
 </head>
 <body>
+    <!-- Skip Link for Accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- Page Loading Indicator -->
+    <div class="page-loader" id="pageLoader">
+        <div class="loader-swirl"></div>
+    </div>
+
+    <!-- HTMX Global Progress Indicator -->
+    <div class="htmx-loading-global"></div>
+
+    <!-- Session Timeout Warning -->
+    <div class="session-warning" id="sessionWarning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Session expires in <span id="sessionCountdown">5:00</span>
+        <button class="btn btn-sm btn-light ms-3" onclick="extendSession()">Extend</button>
+    </div>
+
     <!-- Enhanced Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm" style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-bottom: 3px solid #f59e0b;">
+    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm" style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-bottom: 3px solid #f59e0b;" role="navigation" aria-label="Main navigation">
         <div class="container">
             <!-- Brand -->
             <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{% url 'store:dashboard' %}">
@@ -177,25 +455,45 @@
     {% endif %}
 
     <!-- Main Content -->
-    <main class="mb-4">
+    <main class="mb-4" id="main-content" role="main" aria-live="polite">
         {% block content %}
         {% endblock %}
     </main>
 
     <!-- Footer -->
-    <footer class="bg-dark text-white py-3 mt-auto border-top" style="border-bottom: 3px solid #f59e0b !important;">
+    <footer class="bg-dark text-white py-4 mt-auto border-top" style="border-bottom: 3px solid #f59e0b !important;">
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-md-6">
-                    <small class="text-white-50">
-                        <i class="fas fa-clinic-medical me-1" style="color: #f59e0b;"></i>
-                        NEOPHARM Pharmacy Management System
-                    </small>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-clinic-medical" style="color: #f59e0b; font-size: 1.2rem;"></i>
+                        <div>
+                            <strong>NEOPHARM Pharmacy Management</strong>
+                            <small class="d-block text-white-50">Efficient inventory & prescription management</small>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <small class="text-white-50">
+                    <small class="text-white-50 me-2">
                         <i class="fas fa-clock me-1"></i> 
-                        Current Time: <span id="current-time"></span>
+                        <span id="current-time"></span>
+                    </small>
+                    <small class="text-white-50 ms-2">
+                        | <span id="online-status"><i class="fas fa-circle text-success" style="font-size: 0.5rem;"></i> Online</span>
+                    </small>
+                    <div class="mt-2" id="session-info" style="display: none;">
+                        <small class="text-warning">
+                            <i class="fas fa-hourglass-half"></i> 
+                            <span id="session-info-time">Session: 30:00</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12 text-center">
+                    <small class="text-white-30">
+                        <span class="kbd-shortcut">Ctrl</span> + <span class="kbd-shortcut">/</span> for shortcuts |
+                        <span class="kbd-shortcut">Shift</span> + <span class="kbd-shortcut">K</span> to search
                     </small>
                 </div>
             </div>
@@ -208,9 +506,395 @@
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     
-    <!-- Enhanced JavaScript -->
+    {% comment %} Enhanced HTMX Configuration {% endcomment %}
     <script>
-        // Initialize current time display
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configure htmx to work with Django CSRF tokens
+            htmx.config.timeout = 30000; // Increase timeout for slower requests
+            htmx.config.scrollBehavior = 'smooth'; // Enable smooth scrolling
+            htmx.config.historyCacheSize = 10; // Cache 10 entries
+            htmx.config.includeIndicatorStyles = false; // We'll use custom indicators
+
+            // Enhanced htmx event handlers
+            const htmxIndicators = {
+                // Global indicator for any htmx request
+                globalIndicator: document.querySelector('.htmx-loading-global'),
+                
+                // Add enhanced loading states
+                addLoadingStates: function(evt) {
+                    const target = evt.detail.target;
+                    if (!target) return;
+                    
+                    // Add loading state to the target
+                    target.classList.add('htmx-loading');
+                    
+                    // Also show global indicator for non-swapping requests
+                    if (!evt.detail.target.closest('[hx-swap]')) {
+                        document.body.classList.add('htmx-request-global');
+                    }
+                },
+                
+                removeLoadingStates: function(evt) {
+                    const target = evt.detail.target;
+                    if (!target) return;
+                    
+                    target.classList.remove('htmx-loading');
+                    document.body.classList.remove('htmx-request-global');
+                },
+                
+                handleErrors: function(evt) {
+                    // Handle HTMX errors
+                    const detail = evt.detail;
+                    if (!detail.successful) {
+                        showToast('Request failed. Please try again.', 'error');
+                        document.body.classList.remove('htmx-request-global');
+                    }
+                }
+            };
+
+            // HTMX Events
+            document.body.addEventListener('htmx:beforeRequest', htmxIndicators.addLoadingStates);
+            document.body.addEventListener('htmx:afterRequest', htmxIndicators.removeLoadingStates);
+            document.body.addEventListener('htmx:afterSwap', function(evt) {
+                // Focus on the swapped element for accessibility
+                if (evt.detail.target) {
+                    evt.detail.target.focus();
+                }
+            });
+            document.body.addEventListener('htmx:error', htmxIndicators.handleErrors);
+
+            // HTMX config for progress bar
+            let htmxRequestCount = 0;
+            document.body.addEventListener('htmx:beforeRequest', function() {
+                htmxRequestCount++;
+                document.body.classList.add('htmx-request-global');
+            });
+            
+            document.body.addEventListener('htmx:afterRequest', function() {
+                htmxRequestCount = Math.max(0, htmxRequestCount - 1);
+                if (htmxRequestCount === 0) {
+                    document.body.classList.remove('htmx-request-global');
+                }
+            });
+        });
+    </script>
+
+    <!-- Online/Offline Detection -->
+    <script>
+        // Handle online/offline status
+        let isOnline = navigator.onLine;
+        
+        function updateOnlineStatus() {
+            const statusElement = document.getElementById('online-status');
+            if (statusElement) {
+                if (navigator.onLine) {
+                    statusElement.innerHTML = '<i class="fas fa-circle text-success" style="font-size: 0.5rem;"></i> Online';
+                    isOnline = true;
+                } else {
+                    statusElement.innerHTML = '<i class="fas fa-circle text-danger" style="font-size: 0.5rem;"></i> Offline';
+                    isOnline = false;
+                    showToast('You are offline. Some features may not work.', 'warning');
+                }
+            }
+        }
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+    </script>
+
+    <!-- Enhanced JavaScript & App Tools -->
+    <script>
+        // Toast Notification System
+        function showToast(message, type = 'info', duration = 4000) {
+            // Create toast element
+            const toastId = 'toast-' + Date.now();
+            const toastContainer = document.querySelector('.toast-container') || createToastContainer();
+            
+            const toastHtml = `
+                <div id="${toastId}" class="alert alert-${type} shadow-sm fade show" style="min-width: 250px; max-width: 400px;" role="status" aria-live="polite">
+                    <div class="d-flex align-items-center me-2">
+                        <i class="fas fa-${getToastIcon(type)} me-2"></i>
+                        <span>${message}</span>
+                        <button type="button" class="btn-close ms-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            const toast = document.getElementById(toastId);
+            
+            // Auto remove after duration
+            setTimeout(() => {
+                if (toast) {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, duration);
+        }
+
+        function createToastContainer() {
+            const container = document.createElement('div');
+            container.className = 'toast-container';
+            container.setAttribute('role', 'region');
+            container.setAttribute('aria-label', 'Notifications');
+            document.body.appendChild(container);
+            return container;
+        }
+
+        function getToastIcon(type) {
+            const icons = {
+                'success': 'check-circle',
+                'error': 'exclamation-circle',
+                'warning': 'exclamation-triangle',
+                'info': 'info-circle'
+            };
+            return icons[type] || 'info-circle';
+        }
+
+        // Session Management
+        let sessionTimeout = null;
+        let sessionWarningTimeout = null;
+        let sessionRemaining = 1800; // 30 minutes in seconds (adjust as needed)
+
+        function initializeSessionTimer() {
+            // Check if user is authenticated before starting timer
+            const isAuthenticated = '{{ user.is_authenticated|lower }}';
+            if (isAuthenticated === 'true') {
+                startSessionTimer();
+            }
+        }
+
+        function startSessionTimer() {
+            // Show session info in footer
+            const sessionInfo = document.getElementById('session-info');
+            if (sessionInfo) {
+                sessionInfo.style.display = 'block';
+            }
+
+            // Start countdown
+            sessionTimeout = setInterval(() => {
+                sessionRemaining--;
+                updateSessionDisplay();
+                
+                // Show warning at 5 minutes
+                if (sessionRemaining === 300 && !sessionWarningTimeout) {
+                    showSessionWarning();
+                }
+                
+                // Auto logout at expiration
+                if (sessionRemaining <= 0) {
+                    clearInterval(sessionTimeout);
+                    logoutUser();
+                }
+            }, 1000);
+        }
+
+        function updateSessionDisplay() {
+            const minutes = Math.floor(sessionRemaining / 60);
+            const seconds = sessionRemaining % 60;
+            const formatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            const sessionTimeElement = document.getElementById('session-info-time');
+            if (sessionTimeElement) {
+                sessionTimeElement.textContent = `Session: ${formatted}`;
+            }
+            
+            const countdownElement = document.getElementById('sessionCountdown');
+            if (countdownElement) {
+                countdownElement.textContent = formatted;
+            }
+        }
+
+        function showSessionWarning() {
+            const warningElement = document.getElementById('sessionWarning');
+            if (warningElement) {
+                warningElement.classList.add('active');
+                showToast('Your session will expire in 5 minutes. Click "Extend" to continue.', 'warning', 10000);
+            }
+        }
+
+        function closeSessionWarning() {
+            const warningElement = document.getElementById('sessionWarning');
+            if (warningElement) {
+                warningElement.classList.remove('active');
+            }
+        }
+
+        async function extendSession() {
+            closeSessionWarning();
+            showToast('Extending session...', 'info');
+            
+            try {
+                // Send request to extend session
+                const response = await fetch('/api/extend-session/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    sessionRemaining = 1800; // Reset to 30 minutes
+                    showToast('Session extended successfully!', 'success');
+                } else {
+                    throw new Error('Failed to extend session');
+                }
+            } catch (error) {
+                showToast('Could not extend session. Please try again.', 'error');
+                console.error('Session extension error:', error);
+            }
+        }
+
+        function logoutUser() {
+            // Show warning before logout
+            showToast('Session expired. Logging out...', 'warning');
+            setTimeout(() => {
+                window.location.href = "{% url 'store:logout_user' %}";
+            }, 2000);
+        }
+
+        // Utility function to get CSRF token
+        function getCSRFToken() {
+            const cookie = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='));
+            return cookie ? cookie.split('=')[1] : '';
+        }
+
+        // Keyboard Shortcuts
+        const shortcuts = {
+            // Shift + K: Search
+            'Shift+K': () => {
+                const searchInput = document.querySelector('input[type="search"], input[name="search"], #search-input');
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                } else {
+                    // Fallback: try to find any search input via HTMX
+                    const quickSearch = document.querySelector('[hx-get*="search"], [hx-post*="search"]');
+                    if (quickSearch) {
+                        quickSearch.click();
+                        showToast('Search activated', 'info');
+                    }
+                }
+            },
+            
+            // Ctrl + /: Show shortcuts
+            'Ctrl+/': () => {
+                showShortcuts();
+            },
+            
+            // Ctrl + N: New Item (if staff)
+            'Ctrl+N': () => {
+                const addItemLink = document.querySelector('a[href*="add-item"]');
+                if (addItemLink) {
+                    window.location.href = addItemLink.href;
+                }
+            },
+            
+            // Ctrl + M: Cart
+            'Ctrl+M': () => {
+                const cartLink = document.querySelector('a[href*="cart"]');
+                if (cartLink) {
+                    window.location.href = cartLink.href;
+                }
+            },
+
+            // Ctrl + D: Dispense
+            'Ctrl+D': () => {
+                const dispenseLink = document.querySelector('a[href*="dispense"]');
+                if (dispenseLink) {
+                    window.location.href = dispenseLink.href;
+                }
+            },
+
+            // Ctrl + /: Dashboard
+            'Ctrl+/': () => {
+                const dashboardLink = document.querySelector('a[href*="dashboard"]');
+                if (dashboardLink) {
+                    window.location.href = dashboardLink.href;
+                }
+            }
+        };
+
+        function showShortcuts() {
+            const shortcutsHtml = `
+                <div class="modal fade" id="shortcutsModal" tabindex="-1" aria-labelledby="shortcutsModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="shortcutsModalLabel"><i class="fas fa-keyboard me-2"></i>Keyboard Shortcuts</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <table class="table table-sm">
+                                    <tbody>
+                                        <tr><td><span class="kbd-shortcut">Shift</span> + <span class="kbd-shortcut">K</span></td><td>Focus search</td></tr>
+                                        <tr><td><span class="kbd-shortcut">Ctrl</span> + <span class="kbd-shortcut">D</span></td><td>Navigate to Dispense</td></tr>
+                                        <tr><td><span class="kbd-shortcut">Ctrl</span> + <span class="kbd-shortcut">M</span></td><td>Navigate to Cart</td></tr>
+                                        <tr><td><span class="kbd-shortcut">Ctrl</span> + <span class="kbd-shortcut">/</span></td>Show this help</td></tr>
+                                    </tbody>
+                                </table>
+                                <div class="text-muted small">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Shortcuts only work within this application
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Append modal to body if not exists
+            if (!document.getElementById('shortcutsModal')) {
+                document.body.insertAdjacentHTML('beforeend', shortcutsHtml);
+            }
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('shortcutsModal'));
+            modal.show();
+        }
+
+        // Register keyboard events
+        document.addEventListener('keydown', function(e) {
+            // Build key combo (e.g., "Ctrl+Shift+K")
+            let combo = '';
+            if (e.ctrlKey) combo += 'Ctrl+';
+            if (e.shiftKey) combo += 'Shift+';
+            if (e.altKey) combo += 'Alt+';
+            combo += e.key.toUpperCase();
+            
+            // Check if shortcut exists
+            if (shortcuts[combo]) {
+                e.preventDefault();
+                shortcuts[combo]();
+            }
+            
+            // Escape: close modals or warnings
+            if (e.key === 'Escape') {
+                closeSessionWarning();
+            }
+        });
+
+        // Card Enhancement
+        function makeCardsHoverable() {
+            document.querySelectorAll('.card, .action-card').forEach(card => {
+                card.classList.add('card-hover');
+            });
+        }
+
+        // Active Link Enhancement
+        function enhanceActiveLinks() {
+            document.querySelectorAll('.nav-link.active').forEach(link => {
+                link.style.color = '#f59e0b';
+                link.style.textShadow = '0 0 8px rgba(245, 158, 11, 0.5)';
+                link.style.fontWeight = 'bold';
+            });
+        }
+
+        // Initialize Time Display
         function updateTime() {
             const now = new Date();
             const formatted = now.toLocaleString('en-NG', {
@@ -227,29 +911,110 @@
                 timeElement.textContent = formatted;
             }
         }
-        
-        // Update time every second
-        setInterval(updateTime, 1000);
-        updateTime();
 
-        // Enhance active nav links
+        // Initialize everything
         document.addEventListener('DOMContentLoaded', function() {
-            // Make active nav items more obvious
-            document.querySelectorAll('.nav-link.active').forEach(link => {
-                link.style.color = '#f59e0b';
-                link.style.textShadow = '0 0 8px rgba(245, 158, 11, 0.5)';
-            });
-
-            // Smooth scroll to content when navigating
+            // Update time
+            setInterval(updateTime, 1000);
+            updateTime();
+            
+            // Enhance UI
+            makeCardsHoverable();
+            enhanceActiveLinks();
+            
+            // Initialize session timer
+            initializeSessionTimer();
+            
+            // Smooth scroll to hash
             if (window.location.hash) {
                 setTimeout(() => {
                     const element = document.querySelector(window.location.hash);
                     if (element) {
-                        element.scrollIntoView({ behavior: 'smooth' });
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        element.focus();
                     }
                 }, 200);
             }
+
+            // Add page visibility change handling for better UX
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    // User switched tabs - pause interval-heavy features
+                    updateOnlineStatus(); // Quick check
+                } else {
+                    // User returned - resume
+                    updateTime();
+                }
+            });
         });
+
+        // Add beforeunload warning for form data
+        window.addEventListener('beforeunload', function(e) {
+            // Check if any form is dirty (has unsaved changes)
+            const forms = document.querySelectorAll('form');
+            for (let form of forms) {
+                const elements = form.querySelectorAll('input, textarea, select');
+                for (let el of elements) {
+                    if (el.hasAttribute('data-dirty') || 
+                        (el.defaultValue && el.value !== el.defaultValue)) {
+                        e.preventDefault();
+                        e.returnValue = '';
+                        return;
+                    }
+                }
+            }
+        });
+
+        // First-time user onboarding helper
+        function showOnboardingTooltip() {
+            // Check if user has already seen onboarding
+            const hasSeen = localStorage.getItem('neopharm_onboarding_seen');
+            const isAuthed = '{{ user.is_authenticated|lower }}';
+            
+            if (isAuthed === 'true' && !hasSeen) {
+                setTimeout(() => {
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'alert alert-info shadow-lg mb-0';
+                    tooltip.style.cssText = `
+                        position: fixed;
+                        bottom: 80px;
+                        right: 20px;
+                        max-width: 300px;
+                        z-index: 9999;
+                        border-left: 4px solid var(--brand-accent);
+                        animation: slideIn 0.4s ease-out;
+                    `;
+                    tooltip.innerHTML = `
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div>
+                                <strong><i class="fas fa-lightbulb text-warning me-1"></i> Pro Tip</strong>
+                                <p class="mb-1 mt-1 small">Press <span class="kbd-shortcut">Ctrl</span> + <span class="kbd-shortcut">/</span> to see all keyboard shortcuts!</p>
+                            </div>
+                            <button type="button" class="btn-close text-end" aria-label="Close"></button>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(tooltip);
+                    
+                    // Auto dismiss after 8 seconds
+                    setTimeout(() => {
+                        if (tooltip.parentNode) {
+                            tooltip.remove();
+                        }
+                    }, 8000);
+                    
+                    // Close on button click
+                    tooltip.querySelector('.btn-close').addEventListener('click', () => {
+                        tooltip.remove();
+                    });
+                }, 2000);
+                
+                localStorage.setItem('neopharm_onboarding_seen', 'true');
+            }
+        }
+
+        // Call onboarding on page load
+        document.addEventListener('DOMContentLoaded', showOnboardingTooltip);
     </script>
     
     <!-- Extra JS -->
