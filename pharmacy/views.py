@@ -281,7 +281,13 @@ def edit_item(request, drug_type, pk):
     else:
         form = form_class(instance=item)
     
-    return render(request, 'store/edit_item.html', {'form': form, 'item': item, 'drug_type': drug_type})
+    context = {
+        'form': form, 
+        'item': item, 
+        'drug_type': drug_type,
+        'today': timezone.now().date()
+    }
+    return render(request, 'store/edit_item.html', context)
 
 def delete_item(request, drug_type, pk):
     if not request.user.is_authenticated:

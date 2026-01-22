@@ -1,40 +1,264 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container my-4">
     <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0">Edit Item</h3>
+        <div class="col-md-10 offset-md-1">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="fas fa-edit me-2"></i>Edit Item
+                        </h4>
+                        <small class="text-white-50" style="font-size: 0.875rem;">
+                            Editing: {{ item.name }}
+                            {% if item.brand %} - {{ item.brand }}{% endif %}
+                        </small>
+                    </div>
+                    <span class="badge bg-light text-primary" style="font-size: 0.9rem;">
+                        {{ drug_type|upper }}
+                    </span>
                 </div>
+                
                 <div class="card-body">
-                    <form method="post">
+                    <form method="post" novalidate>
                         {% csrf_token %}
                         
-                        {% for field in form %}
-                        <div class="mb-3">
-                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                            {{ field.errors }}
-                            {{ field }}
-                            {% if field.help_text %}
-                            <small class="form-text text-muted">{{ field.help_text }}</small>
-                            {% endif %}
+                        <!-- Error Alert -->
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Validation Error
+                            </h6>
+                            <div class="mb-2">{{ form.non_field_errors }}</div>
+                            {% for field in form %}
+                                {% if field.errors %}
+                                <div class="small mt-1">
+                                    <strong>{{ field.label }}:</strong> {{ field.errors }}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
                         </div>
-                        {% endfor %}
+                        {% endif %}
 
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{% url 'store:store' %}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left"></i> Back to Store
+                        <!-- Form Fields -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">
+                                        Product Name <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.name }}
+                                    <div class="form-text">Generic or brand name of the product</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.brand.id_for_label }}" class="form-label">
+                                        Brand
+                                    </label>
+                                    {{ form.brand }}
+                                    <div class="form-text">Manufacturer or supplier name</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.dosage_form.id_for_label }}" class="form-label">
+                                        Dosage Form <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.dosage_form }}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.unit.id_for_label }}" class="form-label">
+                                        Unit <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.unit }}
+                                    <div class="form-text">e.g., tablet, mg, ml, pack, etc.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.price.id_for_label }}" class="form-label">
+                                        Unit Price (₦) <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.price }}
+                                    <div class="form-text">
+                                        Current: ₦{{ item.price|intcomma }}
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.stock.id_for_label }}" class="form-label">
+                                        Quantity in Stock <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.stock }}
+                                    <div class="form-text">
+                                        Current: {{ item.stock|intcomma }} units
+                                        {% if item.stock < 10 %}
+                                            <span class="text-danger">
+                                                <i class="fas fa-exclamation-circle"></i> Low stock
+                                            </span>
+                                        {% elif item.stock < 20 %}
+                                            <span class="text-warning">
+                                                <i class="fas fa-exclamation-triangle"></i> Stock running low
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.exp_date.id_for_label }}" class="form-label">
+                                        Expiry Date
+                                    </label>
+                                    {{ form.exp_date }}
+                                    <div class="form-text">
+                                        Current: {{ item.exp_date|default_if_none:"Not set" }}
+                                        {% if item.exp_date and item.exp_date < today %}
+                                            <span class="text-danger">
+                                                <i class="fas fa-exclamation-triangle"></i> Expired
+                                            </span>
+                                        {% elif item.exp_date and item.exp_date|timeuntil:today|default:"" < "30 days" %}
+                                            <span class="text-warning">
+                                                <i class="fas fa-clock"></i> Expiring soon
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                            <a href="{% url 'store:store' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Store
                             </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Save Changes
-                            </button>
+                            <div class="d-flex gap-2">
+                                <a href="{% if drug_type == 'lpacemaker' %}{% url 'store:delete_item' drug_type item.pk %}{% elif drug_type == 'ncap' %}{% url 'store:delete_item' drug_type item.pk %}{% elif drug_type == 'oncology' %}{% url 'store:delete_item' drug_type item.pk %}{% endif %}" 
+                                   class="btn btn-outline-danger" 
+                                   onclick="return confirm('Are you sure you want to delete this item? This action cannot be undone.');">
+                                    <i class="fas fa-trash me-2"></i>Delete Item
+                                </a>
+                                <button type="submit" class="btn btn-primary px-4">
+                                    <i class="fas fa-save me-2"></i>Save Changes
+                                </button>
+                            </div>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <!-- Quick Stats Card -->
+            <div class="card mt-3 shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Quick Stats</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="text-muted small">ITEM ID</div>
+                            <div class="fw-bold">{{ item.pk }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">CREATED</div>
+                            <div class="fw-bold">
+                                {% if item.created_at %}
+                                    {{ item.created_at|date:"M d, Y" }}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">LAST UPDATED</div>
+                            <div class="fw-bold">
+                                {% if item.updated_at %}
+                                    {{ item.updated_at|date:"M d, Y H:i" }}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">DOSAGE UNIT</div>
+                            <div class="fw-bold">
+                                {% if item.dosage_form %}
+                                    {{ item.dosage_form }} - {{ item.unit|default:"N/A" }}
+                                {% else %}
+                                    {{ item.unit|default:"N/A" }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+/* Enhanced styling for better visual appeal */
+.form-control:focus, .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.form-text {
+    font-size: 0.8rem;
+}
+
+.card {
+    border-radius: 12px;
+    border: none;
+}
+
+.card-header {
+    border-radius: 12px 12px 0 0 !important;
+}
+
+.btn {
+    border-radius: 8px;
+    padding: 0.5rem 1.25rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Popover styling for better date picker */
+input[type="date"] {
+    cursor: pointer;
+}
+</style>
+
+<script>
+// Add enhance to form fields
+document.addEventListener('DOMContentLoaded', function() {
+    // Enhance all form controls
+    document.querySelectorAll('.form-control, .form-select').forEach(function(input) {
+        input.classList.add('form-control', 'form-control-sm');
+    });
+
+    // Add nice borders to form-group divs
+    document.querySelectorAll('.mb-3').forEach(function(div) {
+        div.style.padding = '0.25rem';
+        div.style.borderRadius = '8px';
+        div.style.transition = 'background-color 0.2s ease';
+        
+        // Only add hover effect if there's an input
+        const input = div.querySelector('input, select, textarea');
+        if (input) {
+            div.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = 'rgba(13, 110, 253, 0.03)';
+            });
+            div.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = 'transparent';
+            });
+        }
+    });
+});
+</script>
 {% endblock %}
