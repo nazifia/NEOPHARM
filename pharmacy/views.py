@@ -311,11 +311,34 @@ def delete_item(request, drug_type, pk):
     return render(request, 'store/delete_item_confirm.html', {'item': item, 'drug_type': drug_type})
 
 def add_to_cart(request, drug_type, pk):
+    from pharmacy.session_cart import SessionCart
+    
+    # Handle unauthenticated users with session cart
     if not request.user.is_authenticated:
         if request.method == 'POST':
-            messages.error(request, 'Not authenticated')
-            return redirect('store:index')
-        return JsonResponse({'error': 'Not authenticated'}, status=401)
+            quantity = int(request.POST.get('quantity', 1))
+        else:
+            quantity = int(request.GET.get('quantity', 1))
+        
+        # Add to session cart
+        success, message = SessionCart.add_to_session_cart(request, drug_type, pk, quantity)
+        
+        if request.method == 'POST':
+            if success:
+                messages.success(request, message)
+                return redirect('store:dispense')
+            else:
+                messages.error(request, message)
+                return redirect('store:dispense')
+        else:
+            if success:
+                return JsonResponse({
+                    'success': True,
+                    'message': message,
+                    'cart_count': SessionCart.get_cart_count_from_session(request)
+                })
+            else:
+                return JsonResponse({'error': message}, status=400)
     
     if request.method == 'POST':
         quantity = int(request.POST.get('quantity', 1))
@@ -342,18 +365,46 @@ def add_to_cart(request, drug_type, pk):
             return JsonResponse({'error': message}, status=status)
 
 def cart(request):
-
+    from pharmacy.session_cart import SessionCart
+    from decimal import Decimal
+    
+    # Handle session cart for unauthenticated users
     if not request.user.is_authenticated:
-        return redirect('store:index')
-    
-    # Get all cart items that are not yet part of a form (pending cart)
-    cart_items = Cart.objects.filter(
-        user=request.user, 
-        form__isnull=True
-    ).order_by('-created_at')
-    
-    # Calculate total
-    total = sum(item.subtotal for item in cart_items)
+        session_cart = SessionCart.get_session_cart(request)
+        
+        # Convert session cart to display format
+        class SessionCartItem:
+            def __init__(self, session_data):
+                self.quantity = session_data['quantity']
+                self.subtotal = Decimal(str(session_data['price'])) * self.quantity
+                self.price = Decimal(str(session_data['price']))
+                self.unit = session_data.get('unit', 'N/A')
+                self.cart_id = f"{session_data['drug_type']}_{session_data['drug_id']}"
+                self.id = f"{session_data['drug_type']}_{session_data['drug_id']}"
+                
+                # Mock drug object
+                class MockDrug:
+                    def __init__(self, data):
+                        self.name = data['name']
+                        self.brand = data.get('brand')
+                        self.pk = data['drug_id']
+                
+                self._mock_drug = MockDrug(session_data)
+            
+            def get_item(self):
+                return self._mock_drug
+        
+        cart_items = [SessionCartItem(item) for item in session_cart.values()]
+        total = SessionCart.calculate_session_cart_total(request)
+    else:
+        # Get all cart items that are not yet part of a form (pending cart)
+        cart_items = Cart.objects.filter(
+            user=request.user, 
+            form__isnull=True
+        ).order_by('-created_at')
+        
+        # Calculate total
+        total = sum(item.subtotal for item in cart_items)
     
     context = {
         'cart_items': cart_items,
@@ -363,9 +414,36 @@ def cart(request):
     return render(request, 'store/cart.html', context)
 
 def update_cart(request, pk):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
+    from pharmacy.session_cart import SessionCart
     
+    # Handle session cart for unauthenticated users
+    if not request.user.is_authenticated:
+        # pk here is the session cart_id (format: drug_type_drug_id)
+        if request.method == 'POST':
+            quantity = int(request.POST.get('quantity', 1))
+        else:
+            quantity = int(request.GET.get('quantity', 1))
+        
+        session_cart = SessionCart.get_session_cart(request)
+        
+        if quantity <= 0:
+            # Remove item from session cart
+            SessionCart.remove_from_session_cart(request, pk)
+            messages.success(request, 'Item removed from cart')
+            return redirect('store:cart')
+        
+        if pk in session_cart:
+            # Update quantity
+            session_cart[pk]['quantity'] = quantity
+            request.session[SessionCart.SESSION_KEY] = session_cart
+            SessionCart._update_cart_count(request)
+            messages.success(request, 'Cart updated successfully')
+            return redirect('store:cart')
+        else:
+            messages.error(request, 'Cart item not found')
+            return redirect('store:cart')
+    
+    # Handle database cart for authenticated users
     try:
         cart_item = Cart.objects.get(pk=pk, user=request.user)
         
@@ -420,9 +498,21 @@ def update_cart(request, pk):
         return redirect('store:cart')
 
 def remove_from_cart(request, pk):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
+    from pharmacy.session_cart import SessionCart
     
+    # Handle session cart for unauthenticated users
+    if not request.user.is_authenticated:
+        # pk here is the session cart_id (format: drug_type_drug_id)
+        success, message = SessionCart.remove_from_session_cart(request, pk)
+        
+        if success:
+            messages.success(request, message)
+        else:
+            messages.error(request, message)
+        
+        return redirect('store:cart')
+    
+    # Handle database cart for authenticated users
     try:
         cart_item = Cart.objects.get(pk=pk, user=request.user)
         drug = cart_item.get_item
@@ -441,9 +531,15 @@ def remove_from_cart(request, pk):
         return redirect('store:cart')
 
 def clear_cart(request):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
+    from pharmacy.session_cart import SessionCart
     
+    # Handle session cart for unauthenticated users
+    if not request.user.is_authenticated:
+        success, message = SessionCart.clear_session_cart(request)
+        messages.success(request, message)
+        return redirect('store:cart')
+    
+    # Handle database cart for authenticated users
     cart_items = Cart.objects.filter(user=request.user, form__isnull=True)
     
     # Restore stock for all items
@@ -458,16 +554,46 @@ def clear_cart(request):
     return redirect('store:cart')
 
 def dispense(request):
-    if not request.user.is_authenticated:
-        return redirect('store:index')
+    from pharmacy.session_cart import SessionCart
+    from decimal import Decimal
     
     form = dispenseForm()
     
-    # Get cart items for the user
-    cart_items = Cart.objects.filter(user=request.user, form__isnull=True)
+    # Get cart items based on authentication status
+    if request.user.is_authenticated:
+        cart_items = Cart.objects.filter(user=request.user, form__isnull=True)
+        total = sum(item.subtotal for item in cart_items)
+        cart_display_items = cart_items
+    else:
+        # Get session cart items for display
+        session_cart = SessionCart.get_session_cart(request)
+        total = SessionCart.calculate_session_cart_total(request)
+        
+        # Convert session cart to a list that templates expect
+        class SessionCartItem:
+            def __init__(self, session_data):
+                self.quantity = session_data['quantity']
+                self.subtotal = Decimal(str(session_data['price'])) * self.quantity
+                self.price = Decimal(str(session_data['price']))
+                self.unit = session_data.get('unit', 'N/A')
+                self.cart_id = f"{session_data['drug_type']}_{session_data['drug_id']}"
+                
+                # Mock drug object
+                class MockDrug:
+                    def __init__(self, data):
+                        self.name = data['name']
+                        self.brand = data.get('brand')
+                        self.pk = data['drug_id']
+                
+                self._mock_drug = MockDrug(session_data)
+            
+            def get_item(self):
+                return self._mock_drug
+        
+        cart_display_items = [SessionCartItem(item) for item in session_cart.values()]
     
-    # Calculate total
-    total = sum(item.subtotal for item in cart_items)
+    # Make cart_items available to template (alias cart_display_items)
+    cart_items = cart_display_items
     
     # Handle search functionality
     query = request.GET.get('q', '').strip()
@@ -863,9 +989,63 @@ def form_list(request):
     if not request.user.is_authenticated:
         return redirect('store:index')
     
+    # Import necessary function for aggregation
+    from django.db.models import Sum
+    from datetime import timedelta
+    from django.utils import timezone
+    
+    # Get filter parameters from request
+    search_query = request.GET.get('q', '').strip()
+    filter_type = request.GET.get('filter', 'all')
+    
+    # Base queryset
     forms = Form.objects.all().order_by('-date')
     
-    return render(request, 'store/forms.html', {'forms': forms})
+    # Apply search filter
+    if search_query:
+        from django.db.models import Q
+        forms = forms.filter(
+            Q(form_id__icontains=search_query) | 
+            Q(buyer_name__icontains=search_query) | 
+            Q(hospital_no__icontains=search_query) |
+            Q(ncap_no__icontains=search_query)
+        )
+    
+    # Apply date filters
+    today = timezone.now().date()
+    if filter_type == 'today':
+        forms = forms.filter(date__date=today)
+    elif filter_type == 'week':
+        week_ago = today - timedelta(days=7)
+        forms = forms.filter(date__gte=week_ago)
+    elif filter_type == 'month':
+        month_ago = today - timedelta(days=30)
+        forms = forms.filter(date__gte=month_ago)
+    
+    # Calculate statistics for the dashboard cards
+    total_forms = forms.count()
+    total_revenue = forms.aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # Get today's forms count
+    today_forms_count = forms.filter(date__date=today).count() if filter_type != 'today' else total_forms
+    
+    # Get monthly total (current month)
+    first_day_of_month = today.replace(day=1)
+    monthly_total = forms.filter(date__gte=first_day_of_month).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # Get cart count for quick actions
+    cart_count = Cart.objects.filter(user=request.user, form__isnull=True).count() if request.user.is_authenticated else 0
+    
+    context = {
+        'forms': forms,
+        'search_query': search_query,
+        'filter_type': filter_type,
+        'total_revenue': total_revenue,
+        'today_forms_count': today_forms_count,
+        'monthly_total': monthly_total,
+        'cart_count': cart_count,
+    }
+    return render(request, 'store/forms.html', context)
 
 def view_form(request, form_id):
     if not request.user.is_authenticated:

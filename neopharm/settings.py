@@ -48,6 +48,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'pharmacy.middleware.SessionTimeoutMiddleware',
+    'pharmacy.session_cart.SessionCartMiddleware',
 ]
 
 ROOT_URLCONF = 'neopharm.urls'

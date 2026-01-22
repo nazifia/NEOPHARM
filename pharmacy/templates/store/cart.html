@@ -3,33 +3,66 @@
 {% load humanize %}
 
 {% block content %}
-{% if messages %}
-<div class="container mt-3">
-    {% for message in messages %}
-    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+<div class="container my-4">
+    <!-- Page Header -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-1">
+                        <i class="fas fa-shopping-cart text-primary me-2"></i>Dispensing Cart
+                    </h3>
+                    <p class="text-muted mb-0">
+                        Manage your items before generating a dispensing form
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'store:dispense' %}" class="btn btn-success">
+                        <i class="fas fa-pills me-1"></i> Continue Dispensing
+                    </a>
+                    <a href="{% url 'store:forms' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-file-medical me-1"></i> View Forms
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
-    {% endfor %}
-</div>
-{% endif %}
 
-<div class="container">
-    <div class="row my-3">
+    <div class="row">
+        <!-- Cart Items Section -->
         <div class="col-lg-8">
-            <div class="card shadow mb-4">
-                <a href="{% url 'store:dispense' %}" class="btn btn-sm btn-success my-3">
-                    <i class="fas fa-pills"></i> Continue Dispensing
-                </a>
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">Dispensing Cart</h4>
+            <!-- Cart Stats Card -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-body py-2">
+                    <div class="row text-center small">
+                        <div class="col-4 border-end">
+                            <div class="text-muted">Items</div>
+                            <div class="fw-bold text-primary fs-5">{{ cart_items.count }}</div>
+                        </div>
+                        <div class="col-4 border-end">
+                            <div class="text-muted">Unique Items</div>
+                            <div class="fw-bold text-success fs-5">{{ cart_items|length }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted">Total Value</div>
+                            <div class="fw-bold text-danger fs-5">₦{{ total|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-list me-2 text-primary"></i>Cart Items
+                    </h5>
                     {% if cart_items %}
-                    <form action="{% url 'store:clear_cart' %}" method="POST" style="display: inline;">
+                    <form action="{% url 'store:clear_cart' %}" method="POST">
                         {% csrf_token %}
                         <button type="submit"
-                                class="btn btn-danger btn-sm"
-                                onclick="return confirm('Are you sure you want to clear the cart?')">
-                            <i class="fas fa-trash"></i> Clear Cart
+                                class="btn btn-outline-danger btn-sm"
+                                onclick="return confirm('Are you sure you want to clear the entire cart?');">
+                            <i class="fas fa-trash me-1"></i> Clear All
                         </button>
                     </form>
                     {% endif %}
@@ -38,59 +71,129 @@
                 <div class="card-body p-0">
                     {% if cart_items %}
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
+                        <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Item</th>
-                                    <th>Unit</th>
-                                    <th>Quantity</th>
-                                    <th class="text-end">Price</th>
-                                    <th class="text-end">Subtotal</th>
-                                    <th></th>
+                                    <th style="width: 35%;">Item Details</th>
+                                    <th style="width: 15%;">Unit</th>
+                                    <th style="width: 20%;">Quantity</th>
+                                    <th class="text-end" style="width: 15%;">Unit Price</th>
+                                    <th class="text-end" style="width: 15%;">Subtotal</th>
+                                    <th class="text-end" style="width: 10%;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for item in cart_items %}
                                 <tr>
                                     <td>
-                                        <strong>{{ item.get_item.name }}</strong>
-                                        <br>
-                                        <small class="text-muted">{{ item.get_item.brand }}</small>
-                                        {% if item.dosage_form %}
-                                        <br>
-                                        <small class="text-info">{{ item.dosage_form }}</small>
+                                        <!-- Item Name & ID -->
+                                        <div class="mb-2">
+                                            <strong class="fw-semibold">{{ item.get_item.name }}</strong>
+                                            <span class="badge bg-light text-secondary ms-1" style="font-size: 0.7rem;">{{ item.get_item.pk }}</span>
+                                            {% if item.get_item.brand %}
+                                            <br>
+                                            <small class="text-muted">{{ item.get_item.brand }}</small>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <!-- Category Badge -->
+                                        {% if item.drug_type %}
+                                        <span class="badge {% if item.drug_type == 'NCAP' %}bg-warning text-dark{% elif item.drug_type == 'ONCOLOGY' %}bg-danger{% else %}bg-info{% endif %}" 
+                                              style="font-size: 0.65rem;">
+                                            {{ item.drug_type }}
+                                        </span>
                                         {% endif %}
+
+                                        <!-- Cost & Markup Info -->
                                         {% if item.get_item.cost %}
-                                        <br>
-                                        <small class="text-muted">Cost: ₦{{ item.get_item.cost|floatformat:2 }}</small>
-                                        <br>
-                                        <small class="text-muted">Markup: {{ item.get_item.markup }}%</small>
+                                        <div class="text-muted small mt-1">
+                                            <div><i class="fas fa-coins me-1"></i> Cost: ₦{{ item.get_item.cost|floatformat:2|intcomma }}</div>
+                                            <div><i class="fas fa-percentage me-1"></i> Markup: {{ item.get_item.markup }}%</div>
+                                        </div>
+                                        {% endif %}
+
+                                        <!-- Stock & Expiry Warnings -->
+                                        {% if item.get_item %}
+                                            {% with drug=item.get_item %}
+                                                <div class="mt-1">
+                                                {% if drug.stock < 5 %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="fas fa-exclamation-circle"></i> Low Stock: {{ drug.stock }}
+                                                    </span>
+                                                {% elif drug.stock < 10 %}
+                                                    <span class="badge bg-warning text-dark">
+                                                        <i class="fas fa-exclamation-triangle"></i> Stock: {{ drug.stock }}
+                                                    </span>
+                                                {% endif %}
+                                                
+                                                {% if drug.exp_date %}
+                                                    {% with days_left=drug.exp_date|timeuntil:"" %}
+                                                        {% if days_left %}
+                                                            {% if "today" in days_left or "1 day" in days_left %}
+                                                                <span class="badge bg-danger ms-1">
+                                                                    <i class="fas fa-calendar-times"></i> Expiring Today!
+                                                                </span>
+                                                            {% elif "days" in days_left %}
+                                                                {% if "7" in days_left or "6" in days_left or "5" in days_left or "4" in days_left or "3" in days_left or "2" in days_left or "1" in days_left %}
+                                                                    <span class="badge bg-warning text-dark ms-1">
+                                                                        <i class="fas fa-clock"></i> {{ days_left }}
+                                                                    </span>
+                                                                {% endif %}
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                {% endif %}
+                                                </div>
+                                            {% endwith %}
                                         {% endif %}
                                     </td>
-                                    <td>{{ item.unit }}</td>
-                                    <td style="width: 150px;">
-                                        <form action="{% url 'store:update_cart' item.id %}" method="POST" class="d-flex gap-2">
+                                    
+                                    <!-- Unit -->
+                                    <td>{{ item.unit|default:"N/A" }}</td>
+                                    
+                                    <!-- Quantity Input -->
+                                    <td>
+                                        <form action="{% url 'store:update_cart' item.id %}" method="POST" class="d-flex align-items-center gap-1">
                                             {% csrf_token %}
                                             <input type="number"
                                                    name="quantity"
                                                    value="{{ item.quantity }}"
                                                    min="1"
-                                                   class="form-control form-control-sm"
-                                                   style="width: 70px">
-                                            <button type="submit" class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-sync-alt"></i> Update
+                                                   class="form-control form-control-sm text-center fw-bold"
+                                                   style="width: 65px;">
+                                            <button type="submit" 
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    title="Update quantity"
+                                                    data-bs-toggle="tooltip"
+                                                    data-bs-placement="top">
+                                                <i class="fas fa-sync-alt"></i>
                                             </button>
                                         </form>
                                     </td>
-                                    <td class="text-end">₦{{ item.price|floatformat:2|intcomma }}</td>
-                                    <td class="text-end">₦{{ item.subtotal|floatformat:2|intcomma }}</td>
+                                    
+                                    <!-- Unit Price -->
+                                    <td class="text-end">
+                                        <strong class="fw-bold text-danger">₦{{ item.price|floatformat:2|intcomma }}</strong>
+                                    </td>
+                                    
+                                    <!-- Subtotal -->
+                                    <td class="text-end">
+                                        <strong class="fw-bold text-primary" style="font-size: 1.05rem;">
+                                            ₦{{ item.subtotal|floatformat:2|intcomma }}
+                                        </strong>
+                                    </td>
+                                    
+                                    <!-- Actions -->
                                     <td class="text-end">
                                         <form action="{% url 'store:remove_from_cart' item.id %}" method="POST" class="d-inline">
                                             {% csrf_token %}
                                             <button type="submit"
                                                     class="btn btn-sm btn-outline-danger"
-                                                    onclick="return confirm('Are you sure you want to remove this item?')">
-                                                <i class="fas fa-times"></i> Remove
+                                                    onclick="return confirm('Remove {{ item.get_item.name }} from cart?');"
+                                                    title="Remove item"
+                                                    data-bs-toggle="tooltip"
+                                                    data-bs-placement="top">
+                                                <i class="fas fa-times"></i>
                                             </button>
                                         </form>
                                     </td>
@@ -100,74 +203,292 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
-                        <h5>Your cart is empty</h5>
-                        <a href="{% url 'store:dispense' %}" class="btn btn-primary mt-3">
-                            <i class="fas fa-pills"></i> Continue Dispensing
-                        </a>
+                    <!-- Empty Cart State -->
+                    <div class="py-5 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-shopping-cart fa-4x text-muted mb-3"></i>
+                        </div>
+                        <h5 class="text-muted fw-bold">Your cart is currently empty</h5>
+                        <p class="text-muted mb-3">Start adding items from the dispensing page to build your cart</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="{% url 'store:dispense' %}" class="btn btn-primary">
+                                <i class="fas fa-pills me-1"></i> Go to Dispense
+                            </a>
+                            <a href="{% url 'store:store' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-store me-1"></i> Browse Store
+                            </a>
+                        </div>
                     </div>
                     {% endif %}
                 </div>
             </div>
+
+            <!-- Quick Navigation -->
+            <div class="row mt-3 g-2">
+                <div class="col-md-6">
+                    <a href="{% url 'store:store' %}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-store me-1"></i> Browse Store
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <a href="{% if cart_items %}{% url 'store:dispense' %}{% else %}{% url 'store:dispense' %}{% endif %}" 
+                       class="btn btn-success w-100">
+                        <i class="fas fa-pills me-1"></i> Add More Items
+                    </a>
+                </div>
+            </div>
         </div>
 
+        <!-- Order Summary & Checkout Section -->
         {% if cart_items %}
         <div class="col-lg-4">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Order Summary</h5>
+            <div class="card shadow-sm sticky-top" style="top: 1rem;">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-receipt me-2"></i>Order Summary
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Subtotal</span>
-                        <strong>₦{{ total_price|floatformat:2|intcomma }}</strong>
+                    <!-- Cost Breakdown -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Subtotal ({{ cart_items|length }} items)</span>
+                            <strong>₦{{ total|floatformat:2|intcomma }}</strong>
+                        </div>
+                        
+                        {% if total_discount %}
+                        <div class="d-flex justify-content-between mb-2 text-success">
+                            <span><i class="fas fa-tag me-1"></i> Discount</span>
+                            <strong>₦{{ total_discount|intcomma }}</strong>
+                        </div>
+                        {% endif %}
+
+                        <hr>
+                        
+                        <div class="d-flex justify-content-between fs-4 fw-bold">
+                            <span>Total</span>
+                            <span class="text-primary">₦{{ total|floatformat:2|intcomma }}</span>
+                        </div>
                     </div>
-                    {% if total_discount %}
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Discount</span>
-                        <strong class="text-success">-₦{{ total_discount|intcomma }}</strong>
-                    </div>
-                    {% endif %}
-                    <hr>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Total</span>
-                        <strong class="text-primary">₦{{ final_total|floatformat:2|intcomma }}</strong>
-                    </div>
+
+                    <!-- Patient Form -->
                     <form method="post" action="{% url 'store:receipt' %}" class="mt-3">
                         {% csrf_token %}
+                        
                         <div class="mb-3">
-                            <label class="form-label">Patient Name</label>
-                            <input type="text" name="buyer_name" class="form-control" placeholder="Enter patient name" required>
+                            <label for="patient-name" class="form-label fw-semibold">
+                                <i class="fas fa-user me-1 text-primary"></i>Patient Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   id="patient-name"
+                                   name="buyer_name" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="Enter patient full name"
+                                   required
+                                   autofocus>
+                            <div class="form-text">Enter the name of the patient receiving the medication</div>
                         </div>
+
                         <div class="mb-3">
-                            <label class="form-label">Hospital No</label>
-                            <input type="text" name="hospital_no" class="form-control" placeholder="Enter hospital number" required>
+                            <label for="hospital-no" class="form-label fw-semibold">
+                                <i class="fas fa-hospital me-1 text-primary"></i>Hospital No <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   id="hospital-no"
+                                   name="hospital_no" 
+                                   class="form-control" 
+                                   placeholder="Enter hospital registration number"
+                                   required>
+                            <div class="form-text">Unique hospital identification for the patient</div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">NCAP No</label>
-                            <input type="text" name="ncap_no" class="form-control" placeholder="Enter NCAP number">
+
+                        <div class="mb-4">
+                            <label for="ncap-no" class="form-label fw-semibold">
+                                <i class="fas fa-id-card me-1 text-primary"></i>NCAP No
+                            </label>
+                            <input type="text" 
+                                   id="ncap-no"
+                                   name="ncap_no" 
+                                   class="form-control" 
+                                   placeholder="Optional - enter if applicable">
+                            <div class="form-text">National Cancer Assistance Program number if applicable</div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-file-alt"></i> Generate Form
+
+                        <!-- Promo/Disclaimer -->
+                        <div class="alert alert-info small mb-3">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Review all items carefully before generating the form. Once generated, you can print receipts from the Forms section.
+                        </div>
+
+                        <button type="submit" 
+                                class="btn btn-primary w-100 btn-lg mb-2"
+                                onclick="return confirm('Generate dispensing form for {{ cart_items|length }} item(s) totaling ₦{{ total|floatformat:2 }}?');">
+                            <i class="fas fa-file-alt me-1"></i> Generate Form
                         </button>
+
+                        <div class="text-center text-muted small">
+                            Modified forms can be managed in <a href="{% url 'store:forms' %}">Forms section</a>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
         {% endif %}
     </div>
-</div>
-<div class="card mt-3">
-    <div class="card-body">
-        <h5 class="card-title">Recent Forms</h5>
-        <p class="card-text">View your recent transaction forms and print receipts.</p>
-        <a href="{% url 'store:forms' %}" class="btn btn-primary">
-            <i class="fas fa-file-medical"></i> View Forms
-        </a>
+
+    <!-- Additional Actions Section -->
+    {% if cart_items %}
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="bg-success-subtle p-3 rounded-circle">
+                                <i class="fas fa-stock-plus text-success fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">Need to Add More Items?</h6>
+                                <small class="text-muted">Return to dispensing page to add additional medications</small>
+                            </div>
+                        </div>
+                        <a href="{% url 'store:dispense' %}" class="btn btn-outline-success">
+                            <i class="fas fa-pills me-1"></i> Continue Dispensing
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    {% endif %}
 </div>
-{% endblock %}
+
+<!-- Enhanced Styling -->
+<style>
+/* Enhanced table row hover effect */
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+    transform: scale(1.002);
+    transition: all 0.15s ease;
+}
+
+/* Badge styling enhancement */
+.badge {
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* Form control focus states */
+.form-control:focus, .form-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+}
+
+/* Button hover effects */
+.btn {
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Sticky summary card shadow */
+.sticky-top {
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
+
+/* Custom tooltip styling */
+[data-bs-toggle="tooltip"] {
+    cursor: pointer;
+}
+
+/* Empty state animation */
+.fa-shopping-cart.fa-4x {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+/* Status badges animation */
+.bg-danger, .bg-warning {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
+}
+</style>
+
+<!-- Enhanced JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Enhanced quantity input validation
+    document.querySelectorAll('input[type="number"][name="quantity"]').forEach(function(input) {
+        input.addEventListener('change', function() {
+            let value = parseInt(this.value);
+            if (value < 1) {
+                this.value = 1;
+            } else if (value > 999) {
+                this.value = 999;
+                alert('Maximum quantity is 999');
+            }
+        });
+
+        // Allow Enter key to populate form
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.closest('form').submit();
+            }
+        });
+    });
+
+    // Enhanced form submission confirmation
+    const form = document.querySelector('form[action="{% url 'store:receipt' %}"]');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const patientName = this.querySelector('input[name="buyer_name"]').value;
+            const hospitalNo = this.querySelector('input[name="hospital_no"]').value;
+            
+            if (!patientName.trim() || !hospitalNo.trim()) {
+                e.preventDefault();
+                alert('Please enter Patient Name and Hospital No');
+                return;
+            }
+        });
+    }
+
+    // Auto-focus patient name field when form loads
+    const patientField = document.querySelector('input[name="buyer_name"]');
+    if (patientField && patientField.value === '') {
+        setTimeout(() => patientField.focus(), 100);
+    }
+
+    // Enhanced clear cart confirmation
+    document.querySelectorAll('form[action="{% url 'store:clear_cart' %}"]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (confirm('Are you absolutely sure you want to clear the entire cart? This cannot be undone.')) {
+                this.submit();
+            }
+        });
+    });
+});
+</script>
 
 {% block extra_js %}
 <script>
@@ -178,9 +499,4 @@ document.body.addEventListener('htmx:afterRequest', function(evt) {
 });
 </script>
 {% endblock %}
-
-
-
-
-
-
+{% endblock %}
